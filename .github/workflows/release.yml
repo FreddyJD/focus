@@ -98,16 +98,25 @@ jobs:
       - name: Ensure the tag exists
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
           $tag = "${{ needs.check.outputs.tag }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if (-not (git rev-parse $tag 2>$null)) {
+
+          git rev-parse --verify --quiet "refs/tags/$tag" | Out-Null
+          $exists = $LASTEXITCODE -eq 0
+
+          if (-not $exists) {
             git tag $tag
             git push origin $tag
+            if ($LASTEXITCODE -ne 0) { throw "failed to push tag $tag" }
             Write-Host "created tag $tag"
           } else {
             Write-Host "tag $tag already exists"
           }
+          # git's exit code lingers in $LASTEXITCODE and pwsh uses it as the
+          # step's result, so a benign "tag exists" check would fail the job.
+          exit 0
 
       # electron-builder uploads artifacts concurrently, and if the release
       # doesn't exist yet each upload races to create it — producing two
@@ -117,14 +126,20 @@ jobs:
       - name: Create the release first (avoids a publish race)
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Continue'
           $tag = "${{ needs.check.outputs.tag }}"
-          gh release view $tag 2>$null
-          if (-not $?) {
+
+          gh release view $tag 2>$null | Out-Null
+          $exists = $LASTEXITCODE -eq 0
+
+          if (-not $exists) {
             gh release create $tag --title $tag --generate-notes --verify-tag
+            if ($LASTEXITCODE -ne 0) { throw "failed to create release $tag" }
             Write-Host "created release $tag"
           } else {
             Write-Host "release $tag already exists"
           }
+          exit 0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
