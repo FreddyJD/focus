@@ -77,6 +77,41 @@ const INFRA_SUBFRAME = [
   'paypal.com',
 ];
 
+/**
+ * Resource types that are page *assets* rather than page *content*.
+ *
+ * Almost every real site serves these from a separate CDN domain
+ * (instagram.com -> static.cdninstagram.com, tiktok.com -> tiktokcdn-us.com,
+ * x.com -> abs.twimg.com). Blocking them leaves an allowlisted site rendering
+ * a blank screen, which is worse than useless: the user allowed the site, so
+ * they expect it to work.
+ *
+ * Allowing these when the TOP-LEVEL PAGE is already allowed costs nothing in
+ * terms of the product's promise. You still cannot navigate to a blocked
+ * domain — this only lets a page you already chose finish drawing itself.
+ *
+ * Deliberately excluded: `mainFrame` and `subFrame`, because those are how
+ * you'd actually *browse* somewhere. An iframe of youtube.com inside an
+ * allowed page is content, not an asset.
+ */
+const ASSET_TYPES = new Set([
+  'script',
+  'stylesheet',
+  'image',
+  'font',
+  'media',
+  'xhr',
+  'fetch',
+  'ping',
+  'cspReport',
+  'websocket',
+  'other',
+]);
+
+function isAssetType(resourceType) {
+  return ASSET_TYPES.has(resourceType);
+}
+
 /** URLs that are part of the app itself and must never be blocked. */
 function isInternalUrl(url) {
   if (!url) return true;
@@ -102,5 +137,7 @@ module.exports = {
   isHostAllowed,
   isInternalUrl,
   isDangerousScheme,
+  isAssetType,
   INFRA_SUBFRAME,
+  ASSET_TYPES,
 };

@@ -22,6 +22,7 @@ const {
   isHostAllowed,
   isInternalUrl,
   isDangerousScheme,
+  isAssetType,
   INFRA_SUBFRAME,
 } = require('./allowlist');
 const { AppWatcher } = require('./appwatcher');
@@ -94,8 +95,14 @@ function allowedSites() {
 /**
  * The single source of truth for "can this URL load?".
  * Called from every layer: network, navigation, redirect, popup.
+ *
+ * @param {string} url
+ * @param {object} [opts]
+ * @param {boolean} [opts.isSubframe]  embedded frame rather than top-level
+ * @param {boolean} [opts.isAsset]     script/style/image/font/xhr for a page
+ * @param {string}  [opts.pageUrl]     the page that initiated the request
  */
-function isUrlAllowed(url, { isSubframe = false } = {}) {
+function isUrlAllowed(url, { isSubframe = false, isAsset = false, pageUrl = '' } = {}) {
   if (isInternalUrl(url)) return true;
   if (isDangerousScheme(url)) return false;
   if (!focus.isEnforcing) return true; // idle or paused: browse freely
@@ -103,6 +110,14 @@ function isUrlAllowed(url, { isSubframe = false } = {}) {
   const host = hostOf(url);
   if (!host) return false;
   if (isHostAllowed(host, allowedSites())) return true;
+
+  // An allowed page may load its own assets from anywhere. Real sites serve
+  // scripts and styles from separate CDN domains (instagram.com ->
+  // static.cdninstagram.com), so without this an allowlisted site renders a
+  // blank screen. This never lets the user NAVIGATE anywhere new — only lets
+  // a page they already chose finish drawing itself.
+  if (isAsset && pageUrl && isHostAllowed(hostOf(pageUrl), allowedSites())) return true;
+
   if (isSubframe && isHostAllowed(host, INFRA_SUBFRAME)) return true;
   return false;
 }
@@ -135,7 +150,28 @@ function installNetworkFilter() {
     if (!focus.isEnforcing) return callback({});
 
     const isSubframe = resourceType !== 'mainFrame';
-    if (isUrlAllowed(url, { isSubframe })) return callback({});
+    const isAsset = isAssetType(resourceType);
+
+    // Which page asked for this? Electron gives the initiating frame's URL,
+    // which is what decides whether an off-domain asset is legitimate.
+    let pageUrl = '';
+    if (isAsset) {
+      try {
+        const frame = details.frame;
+        if (frame && frame.url) pageUrl = frame.url;
+      } catch {
+        // Frame may already be gone; fall back to the referrer.
+      }
+      if (!pageUrl && details.referrer) pageUrl = details.referrer;
+      if (!pageUrl) {
+        const wc = details.webContentsId != null
+          ? tabs.find((t) => t.view.webContents.id === details.webContentsId)
+          : null;
+        if (wc) pageUrl = wc.view.webContents.getURL();
+      }
+    }
+
+    if (isUrlAllowed(url, { isSubframe, isAsset, pageUrl })) return callback({});
 
     // Always cancel rather than redirect. Chromium refuses an http -> file://
     // redirect (ERR_UNSAFE_REDIRECT), and cancelling fails closed: not a

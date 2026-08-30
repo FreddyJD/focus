@@ -28,16 +28,18 @@ const {
   isHostAllowed,
   isInternalUrl,
   isDangerousScheme,
+  isAssetType,
   INFRA_SUBFRAME,
 } = require('../src/main/allowlist');
 
-function isUrlAllowed(url, { isSubframe = false } = {}) {
+function isUrlAllowed(url, { isSubframe = false, isAsset = false, pageUrl = '' } = {}) {
   if (isInternalUrl(url)) return true;
   if (isDangerousScheme(url)) return false;
   if (!enforcing) return true;
   const host = hostOf(url);
   if (!host) return false;
   if (isHostAllowed(host, allowed)) return true;
+  if (isAsset && pageUrl && isHostAllowed(hostOf(pageUrl), allowed)) return true;
   if (isSubframe && isHostAllowed(host, INFRA_SUBFRAME)) return true;
   return false;
 }
@@ -64,7 +66,19 @@ app.whenReady().then(async () => {
     const { url, resourceType } = details;
     if (isInternalUrl(url)) return callback({});
     if (!enforcing) return callback({});
-    if (isUrlAllowed(url, { isSubframe: resourceType !== 'mainFrame' })) return callback({});
+
+    const isAsset = isAssetType(resourceType);
+    let pageUrl = '';
+    if (isAsset) {
+      try {
+        if (details.frame && details.frame.url) pageUrl = details.frame.url;
+      } catch {}
+      if (!pageUrl && details.referrer) pageUrl = details.referrer;
+    }
+
+    if (isUrlAllowed(url, { isSubframe: resourceType !== 'mainFrame', isAsset, pageUrl })) {
+      return callback({});
+    }
     return callback({ cancel: true }); // fail closed
   });
 
@@ -117,6 +131,16 @@ app.whenReady().then(async () => {
 
   r = await visit('http://allowed.test/');
   check('allowed host still loads at the end', r.url === 'http://allowed.test/', r.error || r.url);
+
+  // --- the asset exception must not become a navigation bypass ---
+  // A CDN that an allowed page may pull scripts from must still be blocked
+  // when you try to browse to it directly.
+  r = await visit('http://cdn.blocked.test/');
+  check(
+    'a CDN is still blocked as a top-level page',
+    r.blocked === true,
+    r.error || r.url
+  );
 
   server.close();
 

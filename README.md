@@ -41,6 +41,29 @@ Matching is by hostname, not string contains. `google.com` allows
 `mail.google.com` but **not** `notgoogle.com` or `google.com.evil.com` — both
 are classic bypasses and both are covered by tests.
 
+### Sites load properly
+
+Allowing a site allows the assets it needs. Real sites serve their scripts and
+styles from entirely separate domains — `instagram.com` pulls from
+`static.cdninstagram.com`, `tiktok.com` from `tiktokcdn-us.com`, `x.com` from
+`abs.twimg.com` — so matching only the page's own hostname leaves an
+allowlisted site rendering a **blank screen**.
+
+So: a page you allowed may load scripts, styles, images, fonts and XHR from
+anywhere. This costs nothing in terms of the promise, because it can never be
+used to *go* anywhere:
+
+- `mainFrame` and `subFrame` are excluded, so you still cannot navigate to a
+  CDN or embed a blocked site in an iframe.
+- A **blocked** page gets nothing, no matter which domain it asks for.
+- With no known initiating page, the strict hostname rule applies.
+
+You can see exactly what any site requests:
+
+```
+npx electron tools/probe-site.js tiktok.com
+```
+
 ## No easy way out
 
 There is **no close button and no minimize button** on the browser chrome, and
