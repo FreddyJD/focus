@@ -1,6 +1,6 @@
 {
   "name": "focus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A focus browser. Only the sites and apps you allow.",
   "main": "src/main/index.js",
   "author": "FreddyJD",
@@ -49,7 +49,9 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}"
