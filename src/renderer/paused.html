@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self';" />
+<title>Paused</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  body {
+    background: #08090ae6;
+    backdrop-filter: blur(24px) saturate(130%);
+    display: grid;
+    place-items: center;
+  }
+  .card {
+    width: min(380px, calc(100vw - 48px));
+    background: var(--grey-1);
+    border-radius: var(--radius-12);
+    padding: var(--sp-8) var(--sp-6) var(--sp-5);
+    text-align: center;
+    box-shadow: var(--shadow-high),
+      inset 0 0 0 1px var(--border-default),
+      inset 0 1px 0 #ffffff12;
+    animation: card-in var(--speed-slow) var(--ease-out) both;
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.99); }
+    to { opacity: 1; transform: none; }
+  }
+
+  .mark {
+    width: 40px; height: 40px;
+    margin: 0 auto var(--sp-4);
+    border-radius: var(--radius-10);
+    display: grid; place-items: center;
+    background: var(--bg-secondary);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+    color: var(--text-secondary);
+  }
+
+  h1 {
+    margin: 0 0 6px;
+    font-size: var(--title-1-size);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.35;
+    letter-spacing: var(--title-letter-spacing);
+    color: var(--text-primary);
+  }
+  .sub {
+    margin: 0 0 var(--sp-5);
+    color: var(--text-tertiary);
+    font-size: var(--text-mini-size);
+    line-height: 1.55;
+    letter-spacing: var(--text-mini-letter-spacing);
+  }
+
+  /* Remaining time, large and calm — the reason to keep going. */
+  .remaining {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 30px;
+    font-weight: var(--font-weight-medium);
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .remaining-label {
+    font-size: var(--text-micro-size);
+    color: var(--text-quaternary);
+    letter-spacing: var(--text-micro-letter-spacing);
+    margin-bottom: var(--sp-6);
+  }
+
+  .actions { display: flex; gap: 6px; }
+  .actions .btn { flex: 1; height: 34px; }
+
+  .note {
+    margin-top: var(--sp-4);
+    font-size: var(--text-micro-size);
+    color: var(--text-quaternary);
+    line-height: 1.5;
+    letter-spacing: var(--text-micro-letter-spacing);
+  }
+  .note kbd {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 1px 4px;
+    border-radius: var(--radius-4);
+    background: var(--bg-translucent);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+    color: var(--text-tertiary);
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="mark" id="mark"></div>
+    <h1>Session paused</h1>
+    <p class="sub">Blocking is off while you're paused. The clock has stopped.</p>
+
+    <div class="remaining" id="remaining">--:--</div>
+    <div class="remaining-label">still to go</div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="quit">End session</button>
+      <button class="btn btn-primary" id="resume">Continue</button>
+    </div>
+
+    <div class="note">
+      <kbd>Esc</kbd> or <kbd>Enter</kbd> to continue
+    </div>
+  </div>
+  <script src="icons.js"></script>
+  <script src="paused.js"></script>
+</body>
+</html>

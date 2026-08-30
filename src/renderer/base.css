@@ -1,0 +1,393 @@
+/*
+ * Focus design system — monochrome.
+ *
+ * Structure and spacing follow Linear's tokens (weights 510/590/680, negative
+ * tracking, flat near-black surfaces, translucent borders).
+ *
+ * The palette is deliberately hue-free: a single neutral ramp. That removes the
+ * usual shortcut of "colour = meaning", so state has to be carried by
+ * BRIGHTNESS, WEIGHT, ELEVATION and MOTION instead. That is a stricter
+ * discipline and it's why the result reads as precise rather than decorated.
+ *
+ * Motion follows Emil Kowalski's rules: custom ease-out curves (the built-ins
+ * are too weak), everything under 300ms, exits faster than entrances, and
+ * transitions rather than keyframes wherever a thing can be re-triggered.
+ */
+
+@font-face {
+  font-family: "Inter Variable";
+  font-weight: 100 900;
+  font-display: swap;
+  font-style: normal;
+  src: url("fonts/InterVariable.woff2") format("woff2");
+}
+
+:root {
+  /* --- type --- */
+  --font-regular: "Inter Variable", "SF Pro Display", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: "Berkeley Mono", ui-monospace, "SF Mono", "Cascadia Code",
+    Menlo, monospace;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 510;
+  --font-weight-semibold: 590;
+  --font-weight-bold: 680;
+
+  --text-micro-size: 0.75rem;      /* 12px */
+  --text-micro-line-height: 1.4;
+  --text-micro-letter-spacing: 0;
+
+  --text-mini-size: 0.8125rem;     /* 13px */
+  --text-mini-line-height: 1.5;
+  --text-mini-letter-spacing: -0.01em;
+
+  --text-small-size: 0.875rem;     /* 14px */
+  --text-small-line-height: 1.5;
+  --text-small-letter-spacing: -0.013em;
+
+  --text-regular-size: 0.9375rem;  /* 15px */
+  --text-regular-line-height: 1.6;
+  --text-regular-letter-spacing: -0.011em;
+
+  --title-1-size: 1.0625rem;       /* 17px */
+  --title-2-size: 1.25rem;         /* 20px */
+  --title-3-size: 1.5rem;          /* 24px */
+  /* Tracking is size-specific: large text needs MORE negative tracking,
+     otherwise the letters read as drifting apart (Apple, WWDC 2020). */
+  --title-letter-spacing: -0.018em;
+  --title-tight-letter-spacing: -0.024em;
+
+  /* --- the single neutral ramp --- */
+  --grey-0: #08090a;   /* app background */
+  --grey-1: #0e0f10;   /* chrome */
+  --grey-2: #121314;   /* raised panel */
+  --grey-3: #171819;   /* control rest */
+  --grey-4: #1d1e20;   /* control hover */
+  --grey-5: #242527;   /* control active / selected */
+  --grey-6: #2c2d30;   /* strong fill */
+
+  --bg-primary: var(--grey-0);
+  --bg-secondary: var(--grey-3);
+  --bg-tertiary: var(--grey-4);
+  --bg-quaternary: var(--grey-5);
+  --bg-translucent: #ffffff08;
+  --bg-translucent-strong: #ffffff0f;
+
+  /* --- text: four steps, brightness is the only hierarchy --- */
+  --text-primary: #f7f8f8;
+  --text-secondary: #c8cacd;
+  --text-tertiary: #8b8d91;
+  --text-quaternary: #5f6165;
+
+  /* --- borders: translucent white, correct on any surface --- */
+  --border-subtle: #ffffff0d;
+  --border-default: #ffffff14;
+  --border-strong: #ffffff24;
+  --border-focus: #ffffff40;
+
+  /* --- "accent" is simply full-brightness white --- */
+  --accent: #f7f8f8;
+  --accent-fg: #08090a;
+  --accent-hover: #ffffff;
+
+  /* --- state, expressed as brightness only --- */
+  --state-active: #f7f8f8;    /* enforcing: brightest */
+  --state-paused: #8b8d91;    /* paused: receded */
+  --state-idle: #5f6165;      /* idle: quietest */
+
+  /* --- radii --- */
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-rounded: 9999px;
+  --radius-circle: 50%;
+
+  /* --- elevation: shadow + a hairline top edge (light catching an edge) --- */
+  --shadow-low: 0 1px 2px #00000040;
+  --shadow-medium: 0 4px 16px #00000059, 0 1px 2px #0000003d;
+  --shadow-high: 0 16px 48px #00000080, 0 2px 8px #0000004d;
+
+  /* --- motion ---
+     The browser built-ins are too weak to read as intentional. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out-soft: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --speed-instant: 80ms;
+  --speed-fast: 120ms;
+  --speed-regular: 180ms;
+  --speed-slow: 240ms;
+
+  /* --- spacing: 4px base --- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-regular);
+  font-size: var(--text-small-size);
+  line-height: var(--text-small-line-height);
+  letter-spacing: var(--text-small-letter-spacing);
+  font-weight: var(--font-weight-normal);
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv01", "cv03", "cv04", "ss03";
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+input {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: #ffffff26;
+  color: var(--text-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+  border-radius: var(--radius-4);
+}
+
+/* ------------------------------------------------------------------ icons */
+
+.icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-sm { width: 14px; height: 14px; stroke-width: 1.9; }
+.icon-xs { width: 12px; height: 12px; stroke-width: 2; }
+.icon-lg { width: 20px; height: 20px; stroke-width: 1.6; }
+
+/* --------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-6);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: var(--text-mini-size);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--text-mini-letter-spacing);
+  white-space: nowrap;
+  /* Only transform + background/colour: layout-free, GPU-friendly. */
+  transition: background var(--speed-fast) var(--ease-out),
+    color var(--speed-fast) var(--ease-out),
+    transform var(--speed-fast) var(--ease-out),
+    opacity var(--speed-fast) var(--ease-out);
+}
+/* Hover only on devices that truly hover — touch fires it on tap. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+}
+/* Press feedback is the single highest-leverage detail: it makes the UI
+   feel like it heard you. */
+.btn:active { transform: scale(0.97); }
+.btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+  transform: none;
+  background: var(--bg-secondary);
+  color: var(--text-tertiary);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: var(--font-weight-semibold);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-primary:hover { background: var(--accent-hover); color: var(--accent-fg); }
+}
+.btn-primary:disabled { background: var(--bg-quaternary); color: var(--text-quaternary); }
+
+.btn-secondary {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--border-default);
+}
+@media (hover: hover) and (pointer: fine) {
+  .btn-secondary:hover {
+    background: var(--bg-translucent);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+    color: var(--text-primary);
+  }
+}
+
+.btn-ghost { background: transparent; color: var(--text-tertiary); }
+@media (hover: hover) and (pointer: fine) {
+  .btn-ghost:hover { background: var(--bg-translucent); color: var(--text-primary); }
+}
+
+.icon-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--radius-6);
+  color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--speed-fast) var(--ease-out),
+    color var(--speed-fast) var(--ease-out),
+    transform var(--speed-fast) var(--ease-out),
+    opacity var(--speed-fast) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .icon-btn:hover { background: var(--bg-translucent-strong); color: var(--text-primary); }
+}
+.icon-btn:active { transform: scale(0.92); }
+.icon-btn:disabled { opacity: 0.28; cursor: default; background: none; transform: none; }
+
+/* ---------------------------------------------------------------- inputs */
+
+.field {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-6);
+  background: var(--bg-secondary);
+  border: none;
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-primary);
+  font-size: var(--text-mini-size);
+  letter-spacing: var(--text-mini-letter-spacing);
+  outline: none;
+  width: 100%;
+  transition: box-shadow var(--speed-fast) var(--ease-out),
+    background var(--speed-fast) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .field:hover { box-shadow: inset 0 0 0 1px var(--border-default); }
+}
+.field:focus {
+  background: var(--bg-tertiary);
+  box-shadow: inset 0 0 0 1px var(--border-focus);
+}
+.field::placeholder { color: var(--text-quaternary); }
+
+/* ------------------------------------------------------------------ tags */
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 26px;
+  padding: 0 var(--sp-1) 0 10px;
+  border-radius: var(--radius-6);
+  background: var(--bg-secondary);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-mini-size);
+  letter-spacing: var(--text-mini-letter-spacing);
+  /* Enters from 0.96, never 0 — nothing appears out of nothing. */
+  animation: tag-in var(--speed-regular) var(--ease-out);
+}
+@keyframes tag-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.tag button {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-4);
+  color: var(--text-quaternary);
+  display: grid;
+  place-items: center;
+  transition: background var(--speed-fast) var(--ease-out),
+    color var(--speed-fast) var(--ease-out),
+    transform var(--speed-fast) var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .tag button:hover { background: var(--bg-quaternary); color: var(--text-primary); }
+}
+.tag button:active { transform: scale(0.88); }
+
+/* ----------------------------------------------------------------- misc */
+
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-4);
+  background: var(--bg-translucent);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-quaternary);
+}
+
+.divider { height: 1px; background: var(--border-subtle); border: none; margin: 0; }
+
+.scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.scroll::-webkit-scrollbar-track { background: transparent; }
+.scroll::-webkit-scrollbar-thumb {
+  background: var(--grey-5);
+  border-radius: var(--radius-rounded);
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--grey-6);
+  background-clip: content-box;
+}
+
+/* Reduced motion: keep opacity (it aids comprehension), drop movement. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

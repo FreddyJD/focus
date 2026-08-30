@@ -1,0 +1,52 @@
+name: Release
+
+# Tag a version to ship it:
+#   npm version patch    (creates the v1.0.1 tag)
+#   git push --follow-tags
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish Windows installer
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A broken build must never reach users, so the full suite gates release.
+      - name: Unit tests
+        run: npm test
+
+      - name: Renderer smoke tests
+        run: npm run test:renderer
+
+      - name: Window-lock contract
+        run: npm run test:lock
+
+      - name: Security tests
+        run: npm run test:security
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      # Publishes the installer AND latest.yml, which is the file
+      # electron-updater reads to discover new versions.
+      - name: Build and publish to GitHub Releases
+        run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

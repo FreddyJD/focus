@@ -1,0 +1,67 @@
+{
+  "name": "focus",
+  "version": "1.0.0",
+  "description": "A focus browser. Only the sites and apps you allow.",
+  "main": "src/main/index.js",
+  "author": "FreddyJD",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FreddyJD/focus.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node --test test/**/*.test.js",
+    "test:integration": "electron test/integration.js",
+    "test:security": "electron test/security.js",
+    "test:renderer": "electron test/renderer.js",
+    "test:lock": "electron test/windowlock.js",
+    "test:all": "npm test && npm run test:renderer && npm run test:lock && npm run test:security && npm run test:integration",
+    "build": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "devDependencies": {
+    "electron": "^44.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "build": {
+    "appId": "gg.focus.app",
+    "productName": "Focus",
+    "copyright": "Copyright © 2026 FreddyJD",
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!**/*.map"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "FreddyJD",
+        "repo": "focus"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Focus",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

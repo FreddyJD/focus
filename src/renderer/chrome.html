@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:; font-src 'self';" />
+<title>Focus</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  body {
+    background: var(--grey-1);
+    box-shadow: inset 0 -1px 0 var(--border-subtle);
+  }
+
+  /* 88px total: 42 (tabs) + 46 (nav). Each row's height includes its own
+     padding, so the numbers below are exact — 28px controls with real
+     breathing room above, between the rows, and before the page starts. */
+  .strip { display: flex; flex-direction: column; height: 88px; }
+
+  /* ---- row 1: tabs + timer ---- */
+  .row-tabs {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    height: 42px;
+    padding: 10px 10px 4px;
+    -webkit-app-region: drag;
+  }
+  /* Tabs and the + travel together, exactly like Chrome: the strip takes the
+     free space, but the tab list itself only takes what it needs, so the +
+     always sits immediately after the last tab. */
+  .tab-strip {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+  }
+  .tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-app-region: no-drag;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    height: 28px;
+    min-width: 0;
+    max-width: 190px;
+    padding: 0 var(--sp-1) 0 10px;
+    border-radius: var(--radius-6);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: var(--text-mini-size);
+    letter-spacing: var(--text-mini-letter-spacing);
+    font-weight: var(--font-weight-medium);
+    flex: 0 1 auto;
+    transition: background var(--speed-fast) var(--ease-out),
+      color var(--speed-fast) var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tab:hover { background: var(--bg-translucent); color: var(--text-secondary); }
+  }
+  .tab.active {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+  }
+
+  .tab .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    text-align: left;
+    font: inherit;
+    letter-spacing: inherit;
+  }
+  .tab .tab-icon { color: var(--text-quaternary); flex: none; }
+  .tab.active .tab-icon { color: var(--text-tertiary); }
+  .tab.blocked .tab-icon { color: var(--text-quaternary); }
+
+  .tab .x {
+    width: 18px; height: 18px;
+    border-radius: var(--radius-4);
+    display: grid; place-items: center;
+    color: var(--text-quaternary);
+    opacity: 0;
+    flex: none;
+    transition: opacity var(--speed-fast) var(--ease-out),
+      background var(--speed-fast) var(--ease-out),
+      color var(--speed-fast) var(--ease-out),
+      transform var(--speed-fast) var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .tab:hover .x { opacity: 1; }
+    .tab .x:hover { background: var(--bg-quaternary); color: var(--text-primary); }
+  }
+  .tab.active .x { opacity: 1; }
+  .tab .x:active { transform: scale(0.88); }
+
+  .new-tab {
+    width: 26px; height: 26px;
+    border-radius: var(--radius-6);
+    color: var(--text-quaternary);
+    display: grid; place-items: center;
+    flex: none;
+    -webkit-app-region: no-drag;
+    transition: background var(--speed-fast) var(--ease-out),
+      color var(--speed-fast) var(--ease-out),
+      transform var(--speed-fast) var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .new-tab:hover { background: var(--bg-translucent-strong); color: var(--text-primary); }
+  }
+  .new-tab:active { transform: scale(0.9); }
+
+  /* ---- timer: one calm cluster, top right ---- */
+  .timer {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    height: 28px;
+    padding: 0 var(--sp-2) 0 10px;
+    /* Clear separation from the tab strip — the timer is its own thing, not
+       the last tab. */
+    margin-left: var(--sp-6);
+    border-radius: var(--radius-6);
+    background: var(--bg-secondary);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+    flex: none;
+    -webkit-app-region: no-drag;
+    transition: background var(--speed-regular) var(--ease-out),
+      box-shadow var(--speed-regular) var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .timer:hover { box-shadow: inset 0 0 0 1px var(--border-default); }
+  }
+  .timer.paused { background: var(--bg-translucent); }
+
+  .time {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    font-size: var(--text-mini-size);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0;
+    min-width: 42px;
+    text-align: center;
+    color: var(--text-primary);
+    transition: color var(--speed-regular) var(--ease-out);
+  }
+  .timer.paused .time { color: var(--text-tertiary); }
+  .timer.idle .time { color: var(--text-quaternary); }
+
+  .ring { width: 13px; height: 13px; flex: none; transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 3.4; }
+  .ring .track { stroke: var(--grey-6); }
+  .ring .prog {
+    stroke: var(--text-primary);
+    stroke-linecap: round;
+    /* linear: a clock should tick evenly, not ease */
+    transition: stroke-dashoffset 1s linear, stroke var(--speed-regular) var(--ease-out);
+  }
+  .timer.paused .ring .prog { stroke: var(--text-tertiary); }
+
+  /* Paused pulses slowly — motion carries the state that colour used to. */
+  .timer.paused .ring { animation: breathe 2.4s var(--ease-in-out) infinite; }
+  @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .timer-actions { display: flex; align-items: center; gap: 1px; }
+  .timer-actions .icon-btn { width: 20px; height: 20px; border-radius: var(--radius-4); }
+  /* The complete button only appears on hover: it is destructive-ish and
+     rarely used, so it shouldn't compete with the time itself. */
+  .timer #finish {
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
+    transition: width var(--speed-regular) var(--ease-out),
+      opacity var(--speed-fast) var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .timer:hover #finish { width: 20px; opacity: 1; pointer-events: auto; }
+  }
+  .timer.idle .timer-actions { display: none; }
+
+  /* ---- row 2: nav + address ---- */
+  .row-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 46px;
+    padding: 4px 10px 14px;
+  }
+  .row-nav .icon-btn { width: 26px; height: 26px; }
+
+  .address-wrap { position: relative; flex: 1; min-width: 0; margin: 0 var(--sp-2); }
+  .address {
+    height: 28px;
+    padding: 0 var(--sp-3) 0 30px;
+    border-radius: var(--radius-6);
+    background: var(--bg-secondary);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+    border: none;
+    width: 100%;
+    outline: none;
+    font-size: var(--text-mini-size);
+    letter-spacing: var(--text-mini-letter-spacing);
+    color: var(--text-secondary);
+    transition: box-shadow var(--speed-fast) var(--ease-out),
+      background var(--speed-fast) var(--ease-out),
+      color var(--speed-fast) var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .address:hover { box-shadow: inset 0 0 0 1px var(--border-default); }
+  }
+  .address:focus {
+    background: var(--bg-tertiary);
+    box-shadow: inset 0 0 0 1px var(--border-focus);
+    color: var(--text-primary);
+  }
+  .address::placeholder { color: var(--text-quaternary); }
+
+  .addr-icon {
+    position: absolute;
+    left: 9px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-quaternary);
+    pointer-events: none;
+    display: grid;
+    place-items: center;
+    transition: color var(--speed-fast) var(--ease-out);
+  }
+  .addr-icon.secure { color: var(--text-secondary); }
+
+  /* ---- status: a single quiet indicator ---- */
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 26px;
+    padding: 0 10px;
+    border-radius: var(--radius-6);
+    font-size: var(--text-micro-size);
+    letter-spacing: var(--text-micro-letter-spacing);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-tertiary);
+    flex: none;
+    max-width: 210px;
+    transition: background var(--speed-fast) var(--ease-out),
+      color var(--speed-regular) var(--ease-out);
+  }
+  .status .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status .status-icon { color: currentColor; }
+  .status.on { color: var(--text-secondary); }
+  .status.off { color: var(--text-quaternary); }
+
+  .alert {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: var(--radius-6);
+    background: var(--bg-tertiary);
+    box-shadow: inset 0 0 0 1px var(--border-default);
+    color: var(--text-secondary);
+    font-size: var(--text-micro-size);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--text-micro-letter-spacing);
+    white-space: nowrap;
+    margin-right: var(--sp-1);
+    animation: alert-in var(--speed-regular) var(--ease-out);
+  }
+  @keyframes alert-in {
+    from { opacity: 0; transform: translateY(-3px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="strip">
+    <div class="row-tabs">
+      <div class="tab-strip">
+        <div class="tabs" id="tabs"></div>
+        <button class="new-tab" id="newTab" title="New tab &nbsp; Ctrl T"
+                aria-label="New tab"></button>
+      </div>
+
+      <div class="timer idle" id="timer">
+        <svg class="ring" viewBox="0 0 24 24">
+          <circle class="track" cx="12" cy="12" r="10"></circle>
+          <circle class="prog" cx="12" cy="12" r="10"
+                  stroke-dasharray="62.83" stroke-dashoffset="62.83" id="prog"></circle>
+        </svg>
+        <span class="time" id="time">--:--</span>
+        <div class="timer-actions">
+          <button class="icon-btn" id="pause" title="Pause &nbsp; Ctrl Shift P"></button>
+          <button class="icon-btn" id="finish" title="Complete session"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row-nav">
+      <button class="icon-btn" id="back" title="Back" aria-label="Back"></button>
+      <button class="icon-btn" id="forward" title="Forward" aria-label="Forward"></button>
+      <button class="icon-btn" id="reload" title="Reload &nbsp; Ctrl R" aria-label="Reload"></button>
+
+      <div class="address-wrap">
+        <span class="addr-icon" id="addrIcon"></span>
+        <input class="address" id="address" spellcheck="false" autocomplete="off"
+               placeholder="Search or enter an allowed site" />
+      </div>
+
+      <div class="status off" id="status">
+        <span class="status-icon" id="statusIcon"></span>
+        <span class="label" id="statusLabel">Not blocking</span>
+      </div>
+
+      <button class="icon-btn" id="settings" title="Settings" aria-label="Settings"></button>
+    </div>
+  </div>
+
+  <script src="icons.js"></script>
+  <script src="chrome.js"></script>
+</body>
+</html>

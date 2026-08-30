@@ -1,0 +1,14 @@
+node_modules/
+dist/
+out/
+*.log
+npm-debug.log*
+
+# Screenshots and scratch captures from local verification
+*.png
+!src/renderer/**/*.png
+!.github/**/*.png
+
+# Local env
+.env
+.env.local

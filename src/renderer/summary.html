@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self';" />
+<title>Session complete</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  body {
+    background: #08090ae6;
+    backdrop-filter: blur(24px) saturate(130%);
+    display: grid;
+    place-items: center;
+  }
+  .card {
+    width: min(360px, calc(100vw - 48px));
+    background: var(--grey-1);
+    border-radius: var(--radius-12);
+    padding: var(--sp-8) var(--sp-6) var(--sp-5);
+    text-align: center;
+    box-shadow: var(--shadow-high),
+      inset 0 0 0 1px var(--border-default),
+      inset 0 1px 0 #ffffff12;
+    animation: card-in var(--speed-slow) var(--ease-out) both;
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.99); }
+    to { opacity: 1; transform: none; }
+  }
+  .check {
+    width: 40px; height: 40px;
+    margin: 0 auto var(--sp-4);
+    border-radius: var(--radius-10);
+    background: var(--accent);
+    color: var(--accent-fg);
+    display: grid; place-items: center;
+  }
+  .check .icon path {
+    stroke-dasharray: 30;
+    stroke-dashoffset: 30;
+    animation: draw 380ms var(--ease-out) 120ms forwards;
+  }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  h1 {
+    margin: 0 0 5px;
+    font-size: var(--title-1-size);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.35;
+    letter-spacing: var(--title-letter-spacing);
+    color: var(--text-primary);
+  }
+  .sub {
+    margin: 0 0 var(--sp-6);
+    color: var(--text-tertiary);
+    font-size: var(--text-mini-size);
+    line-height: 1.55;
+    letter-spacing: var(--text-mini-letter-spacing);
+  }
+
+  .figures { display: flex; gap: 6px; margin-bottom: var(--sp-5); }
+  .figure {
+    flex: 1;
+    padding: 10px var(--sp-2);
+    background: var(--bg-secondary);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+    border-radius: var(--radius-8);
+  }
+  .figure .n {
+    font-family: var(--font-mono);
+    font-size: var(--title-1-size);
+    font-weight: var(--font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  .figure .l {
+    font-size: var(--text-micro-size);
+    color: var(--text-quaternary);
+    letter-spacing: var(--text-micro-letter-spacing);
+    margin-top: 1px;
+  }
+
+  .actions { display: flex; gap: 6px; }
+  .actions .btn { flex: 1; height: 32px; }
+
+  /* Stagger: figures settle in just after the card. */
+  .figure {
+    opacity: 0;
+    transform: translateY(4px);
+    animation: fig-in var(--speed-regular) var(--ease-out) forwards;
+  }
+  .figure:nth-child(1) { animation-delay: 100ms; }
+  .figure:nth-child(2) { animation-delay: 150ms; }
+  .figure:nth-child(3) { animation-delay: 200ms; }
+  @keyframes fig-in { to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="check" id="check"></div>
+    <h1 id="title">Session complete</h1>
+    <p class="sub" id="sub">Nice work.</p>
+
+    <div class="figures">
+      <div class="figure"><div class="n" id="focused">—</div><div class="l">Focused</div></div>
+      <div class="figure"><div class="n" id="pauses">—</div><div class="l">Pauses</div></div>
+      <div class="figure"><div class="n" id="today">—</div><div class="l">Today</div></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" id="again">Start another</button>
+      <button class="btn btn-primary" id="done">Done</button>
+    </div>
+  </div>
+  <script src="icons.js"></script>
+  <script src="summary.js"></script>
+</body>
+</html>

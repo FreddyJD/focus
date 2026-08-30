@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test on Windows
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests (allowlist, timer, exit flow, lock contract)
+        run: npm test
+
+      # The Electron suites need a display. xvfb isn't available on Windows
+      # runners, but Electron runs headless-ish there with software rendering,
+      # which these tests already use via app.disableHardwareAcceleration().
+      - name: Renderer smoke tests
+        run: npm run test:renderer
+
+      - name: Window-lock contract
+        run: npm run test:lock
+
+      - name: Security (websites cannot reach the internal API)
+        run: npm run test:security
+
+      - name: Integration (blocked requests never hit the network)
+        run: npm run test:integration
+
+  build:
+    name: Build installer (smoke)
+    runs-on: windows-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Proves the installer still builds, without publishing anything.
+      - name: Build (no publish)
+        run: npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: focus-installer-dev
+          path: dist/*.exe
+          retention-days: 7
+          if-no-files-found: error
