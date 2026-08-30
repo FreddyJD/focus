@@ -41,7 +41,8 @@
       {
         "provider": "github",
         "owner": "FreddyJD",
-        "repo": "focus"
+        "repo": "focus",
+        "releaseType": "release"
       }
     ],
     "win": {
