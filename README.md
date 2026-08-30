@@ -185,22 +185,41 @@ shouldn't compete with the time), the address bar hides `https://`, and
 
 ## Releasing
 
-Tag a version and CI does the rest:
+Bump the version and push to main — that's it:
 
 ```
-npm version patch      # or minor / major — creates the v1.0.1 tag
-git push --follow-tags
+npm version patch --no-git-tag-version    # or minor / major
+git commit -am "v1.0.3"
+git push
 ```
 
-The release workflow runs the full test suite, builds the NSIS installer, and
-publishes it to GitHub Releases along with `latest.yml` — the manifest
-`electron-updater` reads to find new versions.
+CI notices `package.json` changed to a version with no matching tag, creates
+the tag, runs the full suite, builds the NSIS installer, and publishes it to
+GitHub Releases along with `latest.yml` — the manifest `electron-updater` reads
+to find new versions. Pushing a `v*` tag directly works too.
+
+The release job refuses to pass unless `latest.yml` is publicly fetchable and
+exactly one release exists for the tag. Both of those have silently broken
+auto-update before, so they're now assertions rather than assumptions.
 
 Installed copies check for updates 8 seconds after launch and every 6 hours
 after that. Downloads happen in the background, and the "restart to update"
 prompt **never appears during a session** — it waits until you're idle, or until
 you next open the app. An update notice that interrupted your focus would defeat
 the point of the app.
+
+## The icon
+
+`build/icon.ico` is generated, not drawn:
+
+```
+node tools/make-icon.js
+```
+
+It's the same material as the app's own cards — a dark rounded square
+(`--grey-1`) with a translucent white hairline and a brighter top edge — with a
+timer ring inside. Because it's built from the design tokens in code, it can't
+drift out of sync with the UI, and it regenerates at any size.
 
 ## Layout
 

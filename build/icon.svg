@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.09"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="28" y="28" width="456" height="456" rx="103" fill="#0e0f10"/>
+  <rect x="28" y="28" width="456" height="456" rx="103" fill="url(#edge)"/>
+  <rect x="28.5" y="28.5" width="455" height="455" rx="102.5"
+        fill="none" stroke="#ffffff14" stroke-width="1"/>
+  <rect x="28.5" y="28.5" width="455" height="455" rx="102.5"
+        fill="none" stroke="#ffffff12" stroke-width="1"
+        stroke-dasharray="228 1596" stroke-dashoffset="-114"/>
+
+  <circle cx="256" cy="256" r="123.12" fill="none"
+          stroke="#2c2d30" stroke-width="39.215999999999994"/>
+  <circle cx="256" cy="256" r="123.12" fill="none"
+          stroke="#f7f8f8" stroke-width="39.215999999999994" stroke-linecap="round"
+          stroke-dasharray="572.4534735147635 201.13230150518723"
+          transform="rotate(-90 256 256)"/>
+</svg>

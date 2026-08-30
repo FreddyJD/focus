@@ -1,10 +1,16 @@
 name: Release
 
-# Tag a version to ship it:
-#   npm version patch    (creates the v1.0.1 tag)
-#   git push --follow-tags
+# Two ways to ship, both fully automatic:
+#
+#   1. Bump the version in package.json and push to main. This workflow
+#      notices the change, creates the matching tag, and releases it.
+#        npm version patch --no-git-tag-version && git commit -am "v1.2.3" && git push
+#
+#   2. Push a tag directly.
+#        npm version patch && git push --follow-tags
 on:
   push:
+    branches: [main]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -13,12 +19,55 @@ permissions:
   contents: write
 
 jobs:
+  # Decides whether there is anything to release. On a branch push this is
+  # "did package.json version change and is that tag missing?"; on a tag push
+  # it is always yes.
+  check:
+    name: Should we release?
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.decide.outputs.should_release }}
+      version: ${{ steps.decide.outputs.version }}
+      tag: ${{ steps.decide.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: decide
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            echo "Tag push — releasing ${{ github.ref_name }}"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Branch push: release only if this version has no tag yet, so
+          # ordinary commits don't try to re-release the same version.
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists — nothing to release"
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "package.json is at $VERSION and $TAG does not exist — releasing"
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
     name: Build and publish Windows installer
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -44,22 +93,38 @@ jobs:
       - name: Integration tests
         run: npm run test:integration
 
+      # When triggered by a version bump on main there's no tag yet, so make
+      # one that points at this commit.
+      - name: Ensure the tag exists
+        shell: pwsh
+        run: |
+          $tag = "${{ needs.check.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if (-not (git rev-parse $tag 2>$null)) {
+            git tag $tag
+            git push origin $tag
+            Write-Host "created tag $tag"
+          } else {
+            Write-Host "tag $tag already exists"
+          }
+
       # electron-builder uploads artifacts concurrently, and if the release
       # doesn't exist yet each upload races to create it — producing two
       # releases on one tag, which breaks the /releases/latest/download URLs
       # the updater relies on. Creating the release up front makes every
       # upload attach to the same one.
       - name: Create the release first (avoids a publish race)
+        shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
-          $exists = gh release view $tag 2>$null
+          $tag = "${{ needs.check.outputs.tag }}"
+          gh release view $tag 2>$null
           if (-not $?) {
-            gh release create $tag --title $tag --notes "Automated release $tag" --verify-tag
+            gh release create $tag --title $tag --generate-notes --verify-tag
             Write-Host "created release $tag"
           } else {
             Write-Host "release $tag already exists"
           }
-        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -70,20 +135,38 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify the update feed is actually public
+      # Auto-update breaks silently if this file isn't reachable, so the job
+      # is not allowed to pass until it is.
+      - name: Verify the update feed is public
+        shell: pwsh
         run: |
-          $tag = "${{ github.ref_name }}"
+          $tag = "${{ needs.check.outputs.tag }}"
           $url = "https://github.com/FreddyJD/focus/releases/download/$tag/latest.yml"
-          for ($i = 1; $i -le 10; $i++) {
+          for ($i = 1; $i -le 12; $i++) {
             try {
               $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 30
               Write-Host "latest.yml is public (HTTP $($r.StatusCode))"
+              Write-Host ([System.Text.Encoding]::UTF8.GetString($r.Content))
               exit 0
             } catch {
-              Write-Host "attempt $i : not yet available, waiting..."
+              Write-Host "attempt $i : not available yet, waiting..."
               Start-Sleep -Seconds 15
             }
           }
           Write-Error "latest.yml never became publicly reachable - auto-update would be broken"
           exit 1
+
+      # Two releases on one tag is the exact failure that broke v1.0.0 and
+      # v1.0.1, so fail loudly rather than shipping an unreachable download.
+      - name: Verify exactly one release for this tag
         shell: pwsh
+        run: |
+          $tag = "${{ needs.check.outputs.tag }}"
+          $json = gh api "repos/FreddyJD/focus/releases" --jq "[.[] | select(.tag_name==\"$tag\")] | length"
+          if ([int]$json -ne 1) {
+            Write-Error "expected 1 release for $tag but found $json - the download URLs will 404"
+            exit 1
+          }
+          Write-Host "exactly one release for $tag"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

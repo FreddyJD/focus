@@ -8,6 +8,12 @@ npm-debug.log*
 *.png
 !src/renderer/**/*.png
 !.github/**/*.png
+# Generated app icon — committed so CI doesn't need to regenerate it
+!build/icon*.png
+
+# Intermediate icon render artifacts
+build/.render*.html
+build/icon-*.svg
 
 # Local env
 .env

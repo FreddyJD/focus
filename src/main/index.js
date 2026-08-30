@@ -31,6 +31,11 @@ const CHROME_HEIGHT = 88; // browser chrome strip at the top
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js');
 const TAB_PRELOAD = path.join(__dirname, '..', 'preload', 'tab.js');
+
+/** Window/taskbar icon. Packaged builds get it from extraResources. */
+const ICON = app.isPackaged
+  ? path.join(process.resourcesPath, 'icon.png')
+  : path.join(__dirname, '..', '..', 'build', 'icon.png');
 const DEV = process.argv.includes('--dev');
 
 let win = null;              // BaseWindow (fullscreen shell)
@@ -667,6 +672,7 @@ function createWindow() {
     show: false,
     backgroundColor: '#08090a',
     title: 'Focus',
+    icon: ICON,
     // No OS chrome at all. The app draws its own top bar, so a native title
     // bar would just be a second, uglier one.
     frame: false,

@@ -44,6 +44,9 @@ jobs:
     name: Build installer (smoke)
     runs-on: windows-latest
     needs: test
+    # Release runs its own build, so skip this one on version-bump commits to
+    # avoid building the same thing twice.
+    if: "!startsWith(github.event.head_commit.message, 'v')"
 
     steps:
       - uses: actions/checkout@v4
