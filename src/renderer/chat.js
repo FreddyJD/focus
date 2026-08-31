@@ -17,10 +17,11 @@ const el = {
   modelSelect: $('modelSelect'),
 };
 
-$('icoBrand').innerHTML = icon('sparkle', 'xs') || icon('check', 'xs');
+$('icoBrand').innerHTML = icon('sparkle', 'xs');
 $('settingsBtn').innerHTML = icon('settings', 'sm');
 $('closeBtn').innerHTML = icon('close', 'sm');
 $('backBtn').innerHTML = icon('back', 'sm');
+$('editorBack').innerHTML = icon('back', 'sm');
 $('send').innerHTML = icon('arrowRight', 'xs');
 $('refreshModels').innerHTML = icon('reload', 'xs');
 
@@ -294,6 +295,7 @@ async function refreshSheet() {
       ? 'Stored encrypted on this machine. Never sent anywhere except your provider.'
       : 'No secure store available on this system — a key cannot be saved safely.';
   $('baseUrl').value = config.baseUrl || '';
+  $('autoApprove').checked = config.autoApprove !== false;
 
   renderModels(config.model);
   renderSkills(config.skills || []);
@@ -349,8 +351,11 @@ function renderSkills(skills) {
   for (const s of skills) {
     const item = document.createElement('div');
     item.className = 'item ok';
+    item.title = `Edit ${s.id}`;
+
     const dot = document.createElement('span');
     dot.className = 'dot';
+
     const txt = document.createElement('div');
     txt.className = 'txt';
     const n = document.createElement('div');
@@ -361,11 +366,15 @@ function renderSkills(skills) {
     d.textContent = s.description || s.name;
     txt.append(n, d);
 
+    // Clicking the row opens the editor.
+    txt.addEventListener('click', () => openEditor(s.id));
+
     const rm = document.createElement('button');
     rm.className = 'icon-btn';
     rm.innerHTML = icon('close', 'xs');
     rm.title = `Remove ${s.id}`;
-    rm.addEventListener('click', async () => {
+    rm.addEventListener('click', async (e) => {
+      e.stopPropagation();
       await ai.removeSkill(s.id);
       refreshSheet();
     });
@@ -374,6 +383,60 @@ function renderSkills(skills) {
     box.appendChild(item);
   }
 }
+
+// ------------------------------------------------------------ skill editor
+
+let editingId = null;
+
+async function openEditor(id) {
+  editingId = id;
+  const body = id ? await ai.readSkill(id) : '';
+
+  $('editorTitle').textContent = id ? id : 'New skill';
+  $('editorName').hidden = !!id;
+  $('editorName').value = '';
+  $('editorText').value =
+    body ||
+    '---\nname: my-skill\ndescription: When the assistant should use this\n---\n\n';
+  $('editorErr').textContent = '';
+
+  $('editor').hidden = false;
+  $('editorText').focus();
+}
+
+function closeEditor() {
+  $('editor').hidden = true;
+  editingId = null;
+}
+
+$('editorBack').addEventListener('click', closeEditor);
+
+$('editorSave').addEventListener('click', async () => {
+  const text = $('editorText').value;
+  let res;
+
+  if (editingId) {
+    res = await ai.saveSkill(editingId, text);
+  } else {
+    // Take the name from frontmatter when present, else the field.
+    const fm = text.match(/^---[\s\S]*?\bname:\s*(.+?)\s*$/m);
+    const name = (fm ? fm[1] : $('editorName').value).trim();
+    if (!name) {
+      $('editorErr').textContent = 'Give the skill a name, or add one to the frontmatter.';
+      return;
+    }
+    res = await ai.installSkillText(name, text);
+  }
+
+  if (res && res.ok) {
+    closeEditor();
+    refreshSheet();
+  } else {
+    $('editorErr').textContent = (res && res.reason) || 'Could not save.';
+  }
+});
+
+$('newSkill').addEventListener('click', () => openEditor(null));
 
 function renderMcp(servers) {
   const box = $('mcpList');
@@ -435,6 +498,10 @@ $('baseUrl').addEventListener('change', async () => {
 
 $('refreshModels').addEventListener('click', loadModels);
 
+$('autoApprove').addEventListener('change', async () => {
+  config = await ai.setAutoApprove($('autoApprove').checked);
+});
+
 el.modelSelect.addEventListener('change', async () => {
   config = await ai.setModel(el.modelSelect.value);
   updateModelLabel();
@@ -482,8 +549,14 @@ el.input.addEventListener('input', () => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (!el.sheet.hidden) closeSheet();
+    if (!$('editor').hidden) closeEditor();
+    else if (!el.sheet.hidden) closeSheet();
     else if (streaming) ai.cancel();
+  }
+  // Ctrl+S saves while the editor is open.
+  if ((e.ctrlKey || e.metaKey) && e.key === 's' && !$('editor').hidden) {
+    e.preventDefault();
+    $('editorSave').click();
   }
 });
 

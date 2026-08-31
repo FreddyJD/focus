@@ -68,7 +68,10 @@ const api = {
     installSkillUrl: (url) => ipcRenderer.invoke('ai:installSkillUrl', url),
     installSkillText: (name, markdown) =>
       ipcRenderer.invoke('ai:installSkillText', { name, markdown }),
+    readSkill: (id) => ipcRenderer.invoke('ai:readSkill', id),
+    saveSkill: (id, markdown) => ipcRenderer.invoke('ai:saveSkill', { id, markdown }),
     removeSkill: (id) => ipcRenderer.invoke('ai:removeSkill', id),
+    setAutoApprove: (on) => ipcRenderer.invoke('ai:setAutoApprove', on),
 
     listMcp: () => ipcRenderer.invoke('ai:listMcp'),
     addMcp: (spec) => ipcRenderer.invoke('ai:addMcp', spec),

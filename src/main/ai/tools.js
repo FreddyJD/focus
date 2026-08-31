@@ -242,6 +242,26 @@ function removeSkill(id) {
   }
 }
 
+/** Save edits back to an installed skill. */
+function saveSkill(id, markdown) {
+  const safe = String(id || '').replace(/[^a-z0-9._-]/gi, '');
+  if (!safe) return { ok: false, reason: 'Unknown skill.' };
+
+  const body = String(markdown || '').trim();
+  if (!body) return { ok: false, reason: 'A skill cannot be empty.' };
+  if (body.length > 400_000) return { ok: false, reason: 'That is too large.' };
+
+  const dir = path.join(SKILLS_DIR(), safe);
+  try {
+    if (!fs.existsSync(dir)) return { ok: false, reason: 'That skill is not installed.' };
+    fs.writeFileSync(path.join(dir, 'SKILL.md'), body, 'utf8');
+    const meta = parseSkill(body, safe);
+    return { ok: true, id: safe, name: meta.name, description: meta.description };
+  } catch (err) {
+    return { ok: false, reason: err.message };
+  }
+}
+
 /** Fetch a SKILL.md from a URL (raw GitHub, gist, etc). */
 async function installSkillFromUrl(url) {
   const u = String(url || '').trim();
@@ -328,6 +348,7 @@ module.exports = {
   readSkill,
   installSkill,
   installSkillFromUrl,
+  saveSkill,
   removeSkill,
   toolSchemas,
   SKILLS_DIR,

@@ -61,14 +61,38 @@
   /* ---- messages ---- */
   .log {
     flex: 1;
+    /* Without this the flex item's implicit min-height:auto lets it grow to
+       fit its content, so overflow-y never has anything to scroll. */
+    min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: var(--sp-4) var(--sp-3);
     display: flex;
     flex-direction: column;
     gap: var(--sp-4);
   }
+  .log::-webkit-scrollbar { width: 10px; }
+  .log::-webkit-scrollbar-track { background: transparent; }
+  .log::-webkit-scrollbar-thumb {
+    background: var(--grey-5);
+    border-radius: var(--radius-rounded);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  .log::-webkit-scrollbar-thumb:hover {
+    background: var(--grey-6);
+    background-clip: content-box;
+  }
 
-  .msg { display: flex; flex-direction: column; gap: 5px; animation: in 200ms var(--ease-out); }
+  .msg {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    /* Flex children in a column shrink by default; messages must keep their
+       natural height or long ones get squashed instead of scrolling. */
+    flex: none;
+    animation: in 200ms var(--ease-out);
+  }
   @keyframes in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
 
   .msg .who {
@@ -132,6 +156,7 @@
     background: var(--bg-secondary);
     box-shadow: inset 0 0 0 1px var(--border-subtle);
     overflow: hidden;
+    flex: none;
     animation: in 200ms var(--ease-out);
   }
   .tool-head {
@@ -240,6 +265,7 @@
   /* ---- empty / setup ---- */
   .empty {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -283,7 +309,12 @@
   }
   @keyframes slide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .sheet[hidden] { display: none; }
-  .sheet-body { flex: 1; overflow-y: auto; padding: var(--sp-4) var(--sp-3); }
+  .sheet-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--sp-4) var(--sp-3);
+  }
 
   .field-row { margin-bottom: var(--sp-4); }
   .field-row label {
@@ -347,6 +378,80 @@
     min-height: 14px;
   }
   .muted { color: var(--text-quaternary); }
+
+  /* ---- toggle row ---- */
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+  .toggle .txt { flex: 1; min-width: 0; }
+  .toggle .t {
+    font-size: var(--text-mini-size);
+    color: var(--text-primary);
+    letter-spacing: var(--text-mini-letter-spacing);
+  }
+  .toggle .d {
+    font-size: 10.5px;
+    color: var(--text-quaternary);
+    line-height: 1.45;
+    margin-top: 2px;
+  }
+  .switch { position: relative; width: 32px; height: 18px; flex: none; }
+  .switch input {
+    position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer;
+  }
+  .track {
+    position: absolute; inset: 0;
+    background: var(--grey-6);
+    border-radius: var(--radius-rounded);
+    transition: background var(--speed-regular) var(--ease-out);
+    pointer-events: none;
+  }
+  .thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    background: var(--text-quaternary);
+    border-radius: 50%;
+    transition: transform var(--speed-regular) var(--ease-out),
+      background var(--speed-regular) var(--ease-out);
+    pointer-events: none;
+  }
+  .switch input:checked ~ .track { background: var(--accent); }
+  .switch input:checked ~ .thumb { transform: translateX(14px); background: var(--accent-fg); }
+
+  /* ---- skill editor ---- */
+  .editor-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--sp-3);
+  }
+  #editorText {
+    flex: 1;
+    min-height: 0;
+    resize: none;
+    padding: 10px;
+    border-radius: var(--radius-8);
+    background: var(--grey-0);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+    border: none;
+    outline: none;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.6;
+    tab-size: 2;
+  }
+  #editorText:focus { box-shadow: inset 0 0 0 1px var(--border-focus); }
+  .head .spacer { flex: 1; }
+
+  .item { cursor: pointer; }
+  .item .txt { cursor: pointer; }
 </style>
 </head>
 <body>
@@ -412,7 +517,24 @@
         </div>
         <div id="skillList"></div>
         <div class="err" id="skillErr"></div>
-        <div class="desc">Paste a link to a SKILL.md. The assistant loads one when the task matches.</div>
+        <div class="row" style="margin-top:6px;">
+          <button class="btn btn-secondary" id="newSkill" style="flex:1;">Write a new skill</button>
+        </div>
+        <div class="desc">Paste a link to a SKILL.md, or write your own. Click any skill to edit it.</div>
+      </div>
+
+      <div class="field-row">
+        <label>Tool calls</label>
+        <label class="toggle">
+          <div class="txt">
+            <div class="t">Run commands automatically</div>
+            <div class="d">Off means you approve each one. Dangerous commands are always refused.</div>
+          </div>
+          <span class="switch">
+            <input type="checkbox" id="autoApprove" />
+            <span class="track"></span><span class="thumb"></span>
+          </span>
+        </label>
       </div>
 
       <div class="field-row">
@@ -426,6 +548,22 @@
         <div class="err" id="mcpErr"></div>
         <div class="desc">Local stdio servers. Their tools appear to the assistant automatically.</div>
       </div>
+    </div>
+  </div>
+
+  <!-- skill editor -->
+  <div class="sheet" id="editor" hidden>
+    <div class="head">
+      <button class="icon-btn" id="editorBack" title="Back"></button>
+      <span class="title" id="editorTitle">Edit skill</span>
+      <span class="spacer"></span>
+      <button class="btn btn-primary" id="editorSave" style="height:26px;padding:0 12px;">Save</button>
+    </div>
+    <div class="editor-body">
+      <input class="field" id="editorName" spellcheck="false" placeholder="skill-name" hidden />
+      <textarea id="editorText" spellcheck="false"
+                placeholder="---&#10;name: my-skill&#10;description: When to use this skill&#10;---&#10;&#10;Instructions…"></textarea>
+      <div class="err" id="editorErr"></div>
     </div>
   </div>
 

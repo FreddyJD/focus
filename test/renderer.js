@@ -358,6 +358,55 @@ app.whenReady().then(async () => {
       }
     }
 
+    // The chat log must actually scroll. It's a flex child, and flex items
+    // default to min-height:auto — without min-height:0 the log grows to fit
+    // its content and overflow-y never engages, which is exactly the bug this
+    // pins. Assert by overflowing it and checking scrollHeight > clientHeight.
+    if (page.file === 'chat.html') {
+      const probe = [
+        'JSON.stringify((function () {',
+        '  var log = document.getElementById("log");',
+        '  var empty = log.querySelector(".empty");',
+        '  if (empty) empty.remove();',
+        '  for (var i = 0; i < 60; i++) {',
+        '    var m = document.createElement("div");',
+        '    m.className = "msg assistant";',
+        '    m.innerHTML = "<div class=\\"bubble\\">line " + i + "</div>";',
+        '    log.appendChild(m);',
+        '  }',
+        '  log.scrollTop = log.scrollHeight;',
+        '  return {',
+        '    scrollable: log.scrollHeight > log.clientHeight + 10,',
+        '    scrolled: log.scrollTop > 0,',
+        '    logH: log.clientHeight,',
+        '    contentH: log.scrollHeight,',
+        '    bodyH: document.body.clientHeight,',
+        '    composerVisible: document.getElementById("composer").getBoundingClientRect().bottom <= document.body.clientHeight + 2',
+        '  };',
+        '})())',
+      ].join('\n');
+
+      let g = null;
+      try {
+        g = JSON.parse(await win.webContents.executeJavaScript(probe));
+      } catch (err) {
+        check('chat.html: scroll probe ran', false, err.message);
+      }
+      if (g) {
+        check(
+          'chat.html: log scrolls when it overflows',
+          g.scrollable === true,
+          `content=${g.contentH} view=${g.logH}`
+        );
+        check('chat.html: log can be scrolled down', g.scrolled === true, `top=${g.scrolled}`);
+        check(
+          'chat.html: log does not push the composer off-screen',
+          g.composerVisible === true,
+          `bodyH=${g.bodyH}`
+        );
+      }
+    }
+
     // Every icon placeholder should have been filled with an <svg>.
     let emptyIcons = -1;
     try {

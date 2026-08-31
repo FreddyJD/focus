@@ -234,14 +234,18 @@ async function executeTool(call, { onEvent, confirm, signal }) {
     return out;
   }
 
-  // --- bash: always asks first ---
+  // --- bash: runs straight away unless the user asked to review each call ---
   if (call.name === 'bash') {
-    onEvent({ type: 'tool', id: call.id, name: 'bash', args, status: 'pending' });
+    const meta = readMeta();
+    const autoApprove = meta.autoApprove !== false;
 
-    const approved = await confirm({ id: call.id, name: 'bash', args });
-    if (!approved) {
-      onEvent({ type: 'tool', id: call.id, name: 'bash', args, status: 'denied' });
-      return 'The user declined to run this command. Ask what they would prefer instead.';
+    if (!autoApprove) {
+      onEvent({ type: 'tool', id: call.id, name: 'bash', args, status: 'pending' });
+      const approved = await confirm({ id: call.id, name: 'bash', args });
+      if (!approved) {
+        onEvent({ type: 'tool', id: call.id, name: 'bash', args, status: 'denied' });
+        return 'The user declined to run this command. Ask what they would prefer instead.';
+      }
     }
 
     onEvent({ type: 'tool', id: call.id, name: 'bash', args, status: 'running' });
@@ -251,7 +255,9 @@ async function executeTool(call, { onEvent, confirm, signal }) {
       id: call.id,
       name: 'bash',
       args,
-      status: result.ok ? 'done' : 'failed',
+      // A refused command is worth showing differently from one that just
+      // exited non-zero.
+      status: result.refused ? 'denied' : result.ok ? 'done' : 'failed',
       output: result.output,
     });
     return result.output;

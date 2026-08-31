@@ -291,20 +291,21 @@ inject into a page can read that.
 
 ### Tools
 
-- **bash** — runs real shell commands (PowerShell on Windows). **Every call
-  waits for you to approve it**, shown with the exact command before it runs.
+- **bash** — runs real shell commands (PowerShell on Windows). Commands run
+  **automatically** by default; turn off *Run commands automatically* in
+  Settings to approve each one instead.
 - **skill** — loads an installed SKILL.md on demand.
 - **MCP** — add local stdio servers under Settings; their tools appear
   automatically, namespaced `mcp__<server>__<tool>`.
 
 Install a skill by pasting a link to a `SKILL.md` (GitHub blob URLs are
-rewritten to raw automatically).
+rewritten to raw automatically), or write one from scratch. **Click any
+installed skill to edit it** — `Ctrl+S` saves.
 
 A short deny-list refuses catastrophic one-liners (`rm -rf /`, `mkfs`,
-`diskpart`, fork bombs) outright. That's a seatbelt for accidents, not a
-sandbox — **the approval gate is the real protection.** Ordinary work like
-`rm -rf node_modules` is deliberately still allowed, because a filter that
-blocks real work just gets ignored.
+`diskpart`, fork bombs) outright, and that applies whether or not auto-run is
+on. Ordinary work like `rm -rf node_modules` is deliberately still allowed,
+because a filter that blocks real work just gets ignored.
 
 ## Layout
 

@@ -25,6 +25,10 @@ const DEFAULTS = {
   baseUrl: 'https://roxy.gg/v1',
   model: '',
   hasKey: false,
+  // Approving every command gets old fast, so tools run automatically by
+  // default. The deny-list still refuses catastrophic commands outright, and
+  // this can be turned off in Settings to review each call.
+  autoApprove: true,
 };
 
 function readMeta() {
@@ -135,6 +139,7 @@ function publicConfig() {
   return {
     baseUrl: meta.baseUrl || DEFAULTS.baseUrl,
     model: meta.model || '',
+    autoApprove: meta.autoApprove !== false,
     hasKey: present,
     keyHint: hint,
     encryptionAvailable: safeStorage.isEncryptionAvailable(),

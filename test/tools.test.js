@@ -19,6 +19,11 @@ const Module = require('node:module');
  */
 
 // tools.js pulls in electron for app paths; stub it for a plain node test.
+// A temp dir keeps test skills out of the real userData folder.
+const os = require('node:os');
+const pathx = require('node:path');
+const TEST_HOME = pathx.join(os.tmpdir(), 'focus-tools-test');
+
 const realResolve = Module._resolveFilename;
 Module._resolveFilename = function (request, ...args) {
   if (request === 'electron') return 'electron-stub';
@@ -28,7 +33,7 @@ require.cache['electron-stub'] = {
   id: 'electron-stub',
   filename: 'electron-stub',
   loaded: true,
-  exports: { app: { getPath: () => process.cwd() } },
+  exports: { app: { getPath: () => TEST_HOME } },
 };
 
 const { screen, truncate, MAX_OUTPUT } = require('../src/main/ai/tools');
@@ -95,4 +100,44 @@ test('a refused command never executes', async () => {
   assert.equal(res.ok, false);
   assert.equal(res.refused, true);
   assert.ok(res.output.includes('deny-list'));
+});
+
+// ------------------------------------------------------------------ skills
+
+const tools = require('../src/main/ai/tools');
+
+test('skills install, list, edit and remove', () => {
+  const id = tools.installSkill('My Test Skill', '---\nname: my-test\ndescription: does a thing\n---\n\nStep one.');
+  assert.equal(id.ok, true);
+  assert.equal(id.id, 'my-test-skill', 'name should be slugified');
+
+  const listed = tools.listSkills().find((s) => s.id === id.id);
+  assert.ok(listed, 'should appear in the list');
+  assert.equal(listed.description, 'does a thing', 'frontmatter description is parsed');
+
+  const body = tools.readSkill(id.id);
+  assert.ok(body.includes('Step one.'));
+
+  // The whole point of this feature: edits must persist.
+  const saved = tools.saveSkill(id.id, body + '\nStep two, edited.');
+  assert.equal(saved.ok, true);
+  assert.ok(tools.readSkill(id.id).includes('Step two, edited.'), 'edit must round-trip');
+
+  tools.removeSkill(id.id);
+  assert.equal(
+    tools.listSkills().find((s) => s.id === id.id),
+    undefined
+  );
+});
+
+test('skill editing refuses bad input', () => {
+  const made = tools.installSkill('guard-test', 'body');
+  assert.equal(made.ok, true);
+
+  assert.equal(tools.saveSkill(made.id, '   ').ok, false, 'empty skill');
+  assert.equal(tools.saveSkill('does-not-exist', 'x').ok, false, 'unknown skill');
+  // Traversal must never escape the skills directory.
+  assert.equal(tools.saveSkill('../../evil', 'x').ok, false, 'path traversal');
+
+  tools.removeSkill(made.id);
 });

@@ -589,7 +589,14 @@ function registerAiIpc() {
   ipcMain.handle('ai:installSkillText', (_e, { name, markdown }) =>
     aiTools.installSkill(name, markdown)
   );
+  ipcMain.handle('ai:readSkill', (_e, id) => aiTools.readSkill(id));
+  ipcMain.handle('ai:saveSkill', (_e, { id, markdown }) => aiTools.saveSkill(id, markdown));
   ipcMain.handle('ai:removeSkill', (_e, id) => aiTools.removeSkill(id));
+
+  ipcMain.handle('ai:setAutoApprove', (_e, on) => {
+    aiCreds.writeMeta({ autoApprove: !!on });
+    return aiCreds.publicConfig();
+  });
 
   // --- mcp ---
   ipcMain.handle('ai:listMcp', () => mcp.list());
