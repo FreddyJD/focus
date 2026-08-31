@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self';" />
+<title>Activity</title>
+<link rel="stylesheet" href="base.css" />
+<style>
+  body {
+    background: #08090ae6;
+    backdrop-filter: blur(24px) saturate(130%);
+    display: grid;
+    place-items: center;
+    overflow-y: auto;
+  }
+  .card {
+    width: min(880px, calc(100vw - 64px));
+    max-height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    background: var(--grey-1);
+    border-radius: var(--radius-12);
+    box-shadow: var(--shadow-high),
+      inset 0 0 0 1px var(--border-default),
+      inset 0 1px 0 #ffffff12;
+    overflow: hidden;
+    animation: card-in var(--speed-slow) var(--ease-out) both;
+  }
+  @keyframes card-in {
+    from { opacity: 0; transform: translateY(6px) scale(0.99); }
+    to { opacity: 1; transform: none; }
+  }
+
+  header {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-3);
+    padding: var(--sp-6) var(--sp-6) var(--sp-5);
+    flex: none;
+  }
+  header .text { flex: 1; min-width: 0; }
+  h1 {
+    margin: 0 0 5px;
+    font-size: var(--title-2-size);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+    letter-spacing: var(--title-letter-spacing);
+  }
+  .sub {
+    margin: 0;
+    color: var(--text-tertiary);
+    font-size: var(--text-mini-size);
+    line-height: 1.55;
+    letter-spacing: var(--text-mini-letter-spacing);
+  }
+
+  .body { padding: 0 var(--sp-6) var(--sp-5); overflow-y: auto; flex: 1; }
+
+  section { padding: var(--sp-5) 0; box-shadow: inset 0 1px 0 var(--border-subtle); }
+  section:first-child { box-shadow: none; padding-top: 0; }
+
+  .sec-head {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: var(--sp-4);
+    color: var(--text-tertiary);
+  }
+  .sec-head h2 {
+    margin: 0;
+    font-size: var(--text-micro-size);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--text-micro-letter-spacing);
+    color: inherit;
+  }
+  .sec-head .right {
+    margin-left: auto;
+    font-size: var(--text-micro-size);
+    color: var(--text-quaternary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---- figures ---- */
+  .figures { display: flex; gap: 6px; margin-bottom: var(--sp-2); }
+  .figure {
+    flex: 1;
+    padding: 10px var(--sp-3);
+    background: var(--bg-secondary);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
+    border-radius: var(--radius-8);
+  }
+  .figure .n {
+    font-family: var(--font-mono);
+    font-size: var(--title-1-size);
+    font-weight: var(--font-weight-medium);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+    line-height: 1.3;
+  }
+  .figure .l {
+    font-size: var(--text-micro-size);
+    color: var(--text-quaternary);
+    letter-spacing: var(--text-micro-letter-spacing);
+    margin-top: 1px;
+  }
+
+  /* ---- charts ---- */
+  .chart-wrap { position: relative; overflow-x: auto; scrollbar-width: thin; }
+  .chart-wrap::-webkit-scrollbar { height: 8px; }
+  .chart-wrap::-webkit-scrollbar-track { background: transparent; }
+  .chart-wrap::-webkit-scrollbar-thumb {
+    background: var(--grey-5);
+    border-radius: var(--radius-rounded);
+  }
+  canvas { display: block; }
+
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: var(--sp-3);
+    font-size: var(--text-micro-size);
+    color: var(--text-quaternary);
+    letter-spacing: var(--text-micro-letter-spacing);
+  }
+  .legend canvas { border-radius: 2px; }
+
+  .empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: var(--sp-6);
+    justify-content: center;
+    color: var(--text-quaternary);
+    font-size: var(--text-mini-size);
+    letter-spacing: var(--text-mini-letter-spacing);
+  }
+
+  /* ---- tooltip ---- */
+  .tip {
+    position: fixed;
+    pointer-events: none;
+    z-index: 10;
+    padding: 6px 9px;
+    border-radius: var(--radius-6);
+    background: var(--grey-3);
+    box-shadow: var(--shadow-medium), inset 0 0 0 1px var(--border-default);
+    font-size: var(--text-micro-size);
+    letter-spacing: var(--text-micro-letter-spacing);
+    color: var(--text-primary);
+    white-space: nowrap;
+    opacity: 0;
+    transform: translateY(2px);
+    transition: opacity var(--speed-fast) var(--ease-out),
+      transform var(--speed-fast) var(--ease-out);
+  }
+  .tip.show { opacity: 1; transform: none; }
+  .tip .d { color: var(--text-quaternary); }
+
+  footer {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-4) var(--sp-6);
+    box-shadow: inset 0 1px 0 var(--border-subtle);
+    background: var(--grey-2);
+    flex: none;
+  }
+  footer .spacer { flex: 1; }
+  .btn-lg { height: 32px; padding: 0 var(--sp-4); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <div class="text">
+        <h1>Activity</h1>
+        <p class="sub" id="sub">Every minute here is time the timer was actually running.</p>
+      </div>
+    </header>
+
+    <div class="body scroll">
+      <section>
+        <div class="figures">
+          <div class="figure"><div class="n" id="figToday">—</div><div class="l">Today</div></div>
+          <div class="figure"><div class="n" id="figWeek">—</div><div class="l">Last 7 days</div></div>
+          <div class="figure"><div class="n" id="figStreak">—</div><div class="l">Streak</div></div>
+          <div class="figure"><div class="n" id="figBest">—</div><div class="l">Best day</div></div>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <span id="icoGrid"></span>
+          <h2>Focus history</h2>
+          <span class="right" id="yearTotal"></span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="heat"></canvas>
+        </div>
+        <div class="legend">
+          <span>Less</span>
+          <canvas id="legend"></canvas>
+          <span>More</span>
+        </div>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <span id="icoBars"></span>
+          <h2>Minutes per day</h2>
+          <span class="right" id="barRange"></span>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="bars"></canvas>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <div class="spacer"></div>
+      <button class="btn btn-primary btn-lg" id="close">Done</button>
+    </footer>
+  </div>
+
+  <div class="tip" id="tip"></div>
+
+  <script src="icons.js"></script>
+  <script src="dither.js"></script>
+  <script src="activity.js"></script>
+</body>
+</html>

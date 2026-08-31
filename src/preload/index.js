@@ -34,9 +34,13 @@ const api = {
   newSession: () => ipcRenderer.invoke('focus:newSession'),
   installUpdate: () => ipcRenderer.invoke('focus:installUpdate'),
 
+  // --- activity ---
+  getActivity: () => ipcRenderer.invoke('focus:getActivity'),
+  openActivity: () => ipcRenderer.invoke('focus:openActivity'),
+  closeActivity: () => ipcRenderer.invoke('focus:closeActivity'),
+
   // --- config ---
-  setConfig: (patch) => ipcRenderer.invoke('focus:setConfig', patch),
-  addSite: (value) => ipcRenderer.invoke('focus:addSite', value),
+  setConfig: (patch) => ipcRenderer.invoke('focus:setConfig', patch),  addSite: (value) => ipcRenderer.invoke('focus:addSite', value),
   removeSite: (value) => ipcRenderer.invoke('focus:removeSite', value),
   addApp: () => ipcRenderer.invoke('focus:addApp'),
   removeApp: (value) => ipcRenderer.invoke('focus:removeApp', value),

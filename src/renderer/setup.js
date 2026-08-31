@@ -175,8 +175,8 @@ function render(s) {
   const st = s.stats;
   el.stats.replaceChildren();
 
-  // An update banner takes priority over today's stats — it's the only thing
-  // in this footer that needs an action.
+  // An update banner takes priority over stats — it's the only thing in this
+  // footer that needs an action.
   const up = s.update;
   if (up && up.downloaded) {
     el.stats.innerHTML = icon('arrowRight', 'xs');
@@ -185,12 +185,37 @@ function render(s) {
     t.textContent = `Update to ${up.version || 'the latest version'} — restart now`;
     t.addEventListener('click', () => api.installUpdate());
     el.stats.appendChild(t);
-  } else if (st.todayCount) {
-    el.stats.innerHTML = icon('check', 'xs');
+  } else {
+    // Clicking anywhere here opens the day-by-day charts.
+    const btn = document.createElement('button');
+    btn.className = 'stats-link';
+    btn.title = 'See your focus history';
+
+    const last = s.lastSession;
+    let label;
+    if (st.todayCount) {
+      label = `${fmtDur(st.todayMs)} focused today`;
+    } else if (last) {
+      // Be specific rather than showing a hopeful zero: the last real session
+      // is the honest thing to report.
+      label = `Last session ${fmtDur(last.elapsedMs)}`;
+    } else {
+      label = 'No sessions yet';
+    }
+
+    btn.innerHTML = icon(st.todayCount ? 'check' : 'clock', 'xs');
     const t = document.createElement('span');
     t.className = 'label';
-    t.textContent = `${fmtDur(st.todayMs)} focused today`;
-    el.stats.appendChild(t);
+    t.textContent = label;
+    btn.appendChild(t);
+
+    const chev = document.createElement('span');
+    chev.className = 'chev';
+    chev.innerHTML = icon('forward', 'xs');
+    btn.appendChild(chev);
+
+    btn.addEventListener('click', () => api.openActivity());
+    el.stats.appendChild(btn);
   }
 
   el.start.disabled = !running && s.config.allowedSites.length === 0;

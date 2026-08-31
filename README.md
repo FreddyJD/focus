@@ -244,6 +244,35 @@ It's the same material as the app's own cards — a dark rounded square
 timer ring inside. Because it's built from the design tokens in code, it can't
 drift out of sync with the UI, and it regenerates at any size.
 
+## Activity
+
+Click the stat in the setup screen footer to open your history. Two charts,
+both rendered with ordered (Bayer) dithering so intensity reads as texture
+rather than colour:
+
+- **Focus history** — a year-long calendar heatmap. Denser dithering means a
+  more focused day. Scaled against a fixed 4-hour reference rather than your
+  personal best, so a solid cell always means the same thing and the chart
+  doesn't quietly rescale every time you beat a record.
+- **Minutes per day** — a 30-day bar chart with hour gridlines.
+
+Hover either for the exact figure.
+
+### The numbers are real
+
+Elapsed time is wall-clock spent with the timer **running**, excluding pauses.
+It is never inferred from the countdown.
+
+That distinction matters: an earlier version derived elapsed as
+`duration - remaining`, and a finished session has no remaining time — so
+quitting a 25-minute session after 30 seconds was recorded as a **full 25
+minutes**. Real history showed thirteen sessions claiming 25 minutes each when
+the true total was 24 minutes across all of them.
+
+Old inflated records are repaired on load, capped at the wall-clock time
+between a session's start and finish, which is the hard ceiling on how long
+anyone could have focused.
+
 ## Layout
 
 ```
@@ -256,7 +285,8 @@ src/main/watcher.ps1    Win32 foreground-window sidecar
 src/main/updater.js     GitHub Releases auto-update (session-aware)
 src/preload/index.js    full API — trusted UI only
 src/preload/tab.js      restricted API — untrusted pages
-src/renderer/          chrome, setup, paused, blocked, summary
+src/renderer/          chrome, setup, paused, activity, blocked, summary
+src/renderer/dither.js ordered (Bayer) dithering for the charts
 src/renderer/base.css  design tokens (monochrome + Linear structure)
 src/renderer/icons.js  stroked icon set, one 24x24 grid
 ```

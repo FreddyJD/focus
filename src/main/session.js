@@ -32,6 +32,12 @@ class FocusSession extends EventEmitter {
     this.pauseCount = 0;
     this.pausedMs = 0;
     this._pauseStartedAt = 0;
+    // Real focused time, accumulated only while actually running. Derived
+    // from the countdown it would over-report: a session quit after 30
+    // seconds looked like a full 25 minutes, because a finished session has
+    // no remaining time left to subtract.
+    this._focusedMs = 0;
+    this._runningSince = 0;
     this.endedEarly = false;
     this._emit();
   }
@@ -48,14 +54,25 @@ class FocusSession extends EventEmitter {
     this.pauseCount = 0;
     this.pausedMs = 0;
     this._pauseStartedAt = 0;
+    this._focusedMs = 0;
+    this._runningSince = this.startedAt;
     this.endedEarly = false;
     this._startTimer();
     this._emit();
   }
 
+  /** Bank the time spent running since the last state change. */
+  _bankFocused() {
+    if (this._runningSince) {
+      this._focusedMs += Math.max(0, Date.now() - this._runningSince);
+      this._runningSince = 0;
+    }
+  }
+
   pause() {
     if (this.status !== RUNNING) return;
     this._stopTimer();
+    this._bankFocused();
     this.frozenMs = Math.max(0, this.endsAt - Date.now());
     this.status = PAUSED;
     this.pauseCount += 1;
@@ -71,6 +88,7 @@ class FocusSession extends EventEmitter {
     }
     this.endsAt = Date.now() + this.frozenMs;
     this.status = RUNNING;
+    this._runningSince = Date.now();
     this._startTimer();
     this._emit();
   }
@@ -98,6 +116,7 @@ class FocusSession extends EventEmitter {
       this.pausedMs += Date.now() - this._pauseStartedAt;
       this._pauseStartedAt = 0;
     }
+    this._bankFocused();
     this._stopTimer();
     this.status = DONE;
     this.endedEarly = !!early;
@@ -122,8 +141,16 @@ class FocusSession extends EventEmitter {
     return 0;
   }
 
+  /**
+   * Time actually spent focusing — wall-clock while RUNNING, excluding pauses.
+   * This is what gets recorded and charted, so it can never claim credit for
+   * a session you quit after 30 seconds.
+   */
   elapsedMs() {
-    return Math.max(0, this.durationMs - this.remainingMs());
+    const live = this.status === RUNNING && this._runningSince
+      ? Date.now() - this._runningSince
+      : 0;
+    return Math.max(0, this._focusedMs + live);
   }
 
   snapshot() {

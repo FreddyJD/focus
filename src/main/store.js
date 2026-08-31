@@ -45,6 +45,25 @@ class Store {
         .filter(Boolean)
     );
     if (!Array.isArray(this.data.history)) this.data.history = [];
+
+    // Repair history written before elapsedMs was tracked honestly. That
+    // version derived elapsed from the countdown, so a session quit after 30
+    // seconds was stored as a full 25 minutes. Wall-clock between start and
+    // finish is the hard ceiling on how long anyone could have focused.
+    let repaired = 0;
+    this.data.history = this.data.history.map((s) => {
+      if (!s || typeof s !== 'object') return s;
+      const wall = Number(s.finishedAt) - Number(s.startedAt);
+      if (Number.isFinite(wall) && wall >= 0 && Number(s.elapsedMs) > wall) {
+        repaired += 1;
+        return { ...s, elapsedMs: wall, repaired: true };
+      }
+      return s;
+    });
+    if (repaired) {
+      console.log(`[focus] corrected ${repaired} inflated session record(s)`);
+      this.save();
+    }
     const d = Number(this.data.durationMin);
     this.data.durationMin = Number.isFinite(d) ? Math.min(480, Math.max(1, d)) : 50;
     return this.data;
@@ -114,8 +133,107 @@ class Store {
         endedEarly: snapshot.endedEarly,
       },
       ...this.data.history,
-    ].slice(0, 100);
+      // A year of daily history is what the activity heatmap shows, and
+      // sessions are tiny, so keep plenty.
+    ].slice(0, 5000);
     this.save();
+  }
+
+  /** Local YYYY-MM-DD. Days must be local, or sessions land on the wrong date. */
+  static dayKey(ms) {
+    const d = new Date(ms);
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+
+  /**
+   * Focused milliseconds per day, keyed YYYY-MM-DD.
+   * Only real focused time is counted — see FocusSession.elapsedMs().
+   */
+  dailyTotals() {
+    const byDay = new Map();
+    for (const s of this.data.history || []) {
+      const when = Number(s.finishedAt) || Number(s.startedAt);
+      if (!Number.isFinite(when)) continue;
+      const ms = Math.max(0, Number(s.elapsedMs) || 0);
+      const key = Store.dayKey(when);
+      const cur = byDay.get(key) || { ms: 0, sessions: 0 };
+      cur.ms += ms;
+      cur.sessions += 1;
+      byDay.set(key, cur);
+    }
+    return byDay;
+  }
+
+  /**
+   * Everything the activity view needs, computed in main so the renderer
+   * just draws.
+   *
+   * @param {number} days how far back to report
+   */
+  activity(days = 365) {
+    const byDay = this.dailyTotals();
+
+    const out = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = Store.dayKey(d.getTime());
+      const hit = byDay.get(key);
+      out.push({
+        date: key,
+        ms: hit ? hit.ms : 0,
+        sessions: hit ? hit.sessions : 0,
+        dow: d.getDay(),
+      });
+    }
+
+    const active = out.filter((d) => d.ms > 0);
+    const best = active.reduce((m, d) => Math.max(m, d.ms), 0);
+
+    // Streaks, counted backwards from today.
+    let current = 0;
+    for (let i = out.length - 1; i >= 0; i--) {
+      if (out[i].ms > 0) current += 1;
+      else if (i !== out.length - 1) break; // today not counting yet is fine
+      else continue;
+    }
+    let longest = 0;
+    let run = 0;
+    for (const d of out) {
+      if (d.ms > 0) {
+        run += 1;
+        longest = Math.max(longest, run);
+      } else {
+        run = 0;
+      }
+    }
+
+    return {
+      days: out,
+      bestDayMs: best,
+      activeDays: active.length,
+      totalMs: out.reduce((a, d) => a + d.ms, 0),
+      currentStreak: current,
+      longestStreak: longest,
+    };
+  }
+
+  /** The most recent finished session, for "last session" in the footer. */
+  lastSession() {
+    const h = this.data.history || [];
+    if (!h.length) return null;
+    const s = h[0];
+    return {
+      elapsedMs: Math.max(0, Number(s.elapsedMs) || 0),
+      durationMs: Number(s.durationMs) || 0,
+      finishedAt: Number(s.finishedAt) || 0,
+      endedEarly: !!s.endedEarly,
+      pauseCount: Number(s.pauseCount) || 0,
+    };
   }
 
   stats() {

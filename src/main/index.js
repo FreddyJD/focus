@@ -404,6 +404,7 @@ function buildState() {
       strictMode: store.get('strictMode'),
     },
     stats: store.stats(),
+    lastSession: store.lastSession(),
     update: updater ? updater.state : null,
     tabs: tabs.map((t) => ({
       id: t.id,
@@ -632,6 +633,24 @@ function registerIpc() {
     if (res.ok || res.entry) loadInActiveTab(`https://${res.entry || normalizeEntry(host)}`);
     sendState();
     return res;
+  });
+
+  /** Aggregated day-by-day history for the activity charts. */
+  ipcMain.handle('focus:getActivity', () => store.activity(365));
+
+  ipcMain.handle('focus:openActivity', () => {
+    showOverlay('activity');
+    sendState();
+    return buildState();
+  });
+
+  ipcMain.handle('focus:closeActivity', () => {
+    // Return to wherever the user was: the setup screen if idle, the browser
+    // if a session is running.
+    if (focus.isActive) hideOverlay();
+    else showOverlay('setup');
+    sendState();
+    return buildState();
   });
 
   ipcMain.handle('focus:minimize', () => {    // No minimize button exists during a session; this stays guarded anyway.

@@ -35,6 +35,11 @@ const PAGES = [
   },
   { file: 'summary.html', search: '', mustFind: ['#focused', '#pauses', '#today'] },
   { file: 'paused.html', search: '', mustFind: ['#remaining', '#resume', '#quit'] },
+  {
+    file: 'activity.html',
+    search: '',
+    mustFind: ['#heat', '#bars', '#figToday', '#figStreak', '#close'],
+  },
 ];
 
 const STATE = {
@@ -77,6 +82,34 @@ app.whenReady().then(async () => {
     isEnforcing: true,
     allowedSites: STATE.config.allowedSites,
   }));
+
+  // A year of days with a few active ones, so the charts have something real
+  // to draw.
+  ipcMain.handle('focus:getActivity', () => {
+    const days = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 364; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const p = (n) => String(n).padStart(2, '0');
+      const active = i % 3 === 0 && i < 40;
+      days.push({
+        date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+        ms: active ? (i % 7) * 900_000 + 600_000 : 0,
+        sessions: active ? 1 + (i % 3) : 0,
+        dow: d.getDay(),
+      });
+    }
+    return {
+      days,
+      bestDayMs: 6 * 900_000 + 600_000,
+      activeDays: days.filter((d) => d.ms > 0).length,
+      totalMs: days.reduce((a, d) => a + d.ms, 0),
+      currentStreak: 2,
+      longestStreak: 5,
+    };
+  });
 
   const win = new BrowserWindow({
     show: false,
@@ -269,6 +302,42 @@ app.whenReady().then(async () => {
         check('setup.html: a close/quit button exists', g.cancelExists === true);
         check('setup.html: it is visible', g.cancelHidden === false);
         check('setup.html: Start sits right of it', g.startLeftOfCancel === true);
+      }
+    }
+
+    // The charts are canvas, so "renders" isn't enough — assert they actually
+    // drew pixels, otherwise a broken draw call looks identical to a blank one.
+    if (page.file === 'activity.html') {
+      const probe = [
+        'JSON.stringify((function () {',
+        '  function painted(id) {',
+        '    var c = document.getElementById(id);',
+        '    if (!c || !c.width) return 0;',
+        '    var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;',
+        '    var n = 0;',
+        '    for (var i = 3; i < d.length; i += 4) { if (d[i] > 0) n++; }',
+        '    return n;',
+        '  }',
+        '  return {',
+        '    heat: painted("heat"),',
+        '    bars: painted("bars"),',
+        '    legend: painted("legend"),',
+        '    today: (document.getElementById("figToday").textContent || "").trim()',
+        '  };',
+        '})())',
+      ].join('\n');
+
+      let g = null;
+      try {
+        g = JSON.parse(await win.webContents.executeJavaScript(probe));
+      } catch (err) {
+        check('activity.html: chart probe ran', false, err.message);
+      }
+      if (g) {
+        check('activity.html: heatmap drew pixels', g.heat > 500, `px=${g.heat}`);
+        check('activity.html: bar chart drew pixels', g.bars > 500, `px=${g.bars}`);
+        check('activity.html: legend drew pixels', g.legend > 20, `px=${g.legend}`);
+        check('activity.html: figures show a value', g.today.length > 0, `today="${g.today}"`);
       }
     }
 
