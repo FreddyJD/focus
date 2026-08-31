@@ -284,6 +284,12 @@
     from { opacity: 0; transform: translateY(-3px) scale(0.98); }
     to { opacity: 1; transform: none; }
   }
+
+  /* Chat toggle reads as "on" while the panel is open. */
+  #chatBtn.on {
+    background: var(--bg-quaternary);
+    color: var(--text-primary);
+  }
 </style>
 </head>
 <body>
@@ -325,6 +331,7 @@
         <span class="label" id="statusLabel">Not blocking</span>
       </div>
 
+      <button class="icon-btn" id="chatBtn" title="Assistant &nbsp; Ctrl J" aria-label="Assistant"></button>
       <button class="icon-btn" id="settings" title="Settings" aria-label="Settings"></button>
     </div>
   </div>

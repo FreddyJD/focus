@@ -27,8 +27,13 @@ const {
 } = require('./allowlist');
 const { AppWatcher } = require('./appwatcher');
 const { initUpdater } = require('./updater');
+const aiChat = require('./ai/chat');
+const aiCreds = require('./ai/credentials');
+const aiTools = require('./ai/tools');
+const mcp = require('./ai/mcp');
 
 const CHROME_HEIGHT = 88; // browser chrome strip at the top
+const CHAT_WIDTH = 400; // AI side panel
 const RENDERER = path.join(__dirname, '..', 'renderer');
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.js');
 const TAB_PRELOAD = path.join(__dirname, '..', 'preload', 'tab.js');
@@ -46,6 +51,10 @@ let store = null;
 let focus = null;
 let watcher = null;
 let updater = null;
+let chatView = null;
+let chatOpen = false;
+/** Pending bash approvals: tool call id -> resolve fn. */
+const pendingApprovals = new Map();
 
 /** @type {{id:number, view:WebContentsView, title:string, url:string}[]} */
 let tabs = [];
@@ -199,7 +208,11 @@ function activeTab() {
 
 function contentBounds() {
   const { width, height } = win.getContentBounds();
-  return { x: 0, y: CHROME_HEIGHT, width, height: Math.max(0, height - CHROME_HEIGHT) };
+  // The chat panel shares the window rather than covering the page, so both
+  // stay usable at once — that's the difference between an integrated panel
+  // and a modal.
+  const w = chatOpen ? Math.max(0, width - CHAT_WIDTH) : width;
+  return { x: 0, y: CHROME_HEIGHT, width: w, height: Math.max(0, height - CHROME_HEIGHT) };
 }
 
 function layout() {
@@ -208,6 +221,20 @@ function layout() {
   if (chromeView) chromeView.setBounds({ x: 0, y: 0, width, height: CHROME_HEIGHT });
   const b = contentBounds();
   for (const t of tabs) t.view.setBounds(b);
+
+  if (chatView) {
+    chatView.setBounds(
+      chatOpen
+        ? {
+            x: Math.max(0, width - CHAT_WIDTH),
+            y: CHROME_HEIGHT,
+            width: CHAT_WIDTH,
+            height: Math.max(0, height - CHROME_HEIGHT),
+          }
+        : { x: width, y: CHROME_HEIGHT, width: CHAT_WIDTH, height: 0 }
+    );
+  }
+
   if (overlayView) overlayView.setBounds({ x: 0, y: 0, width, height });
 }
 
@@ -405,6 +432,8 @@ function buildState() {
     },
     stats: store.stats(),
     lastSession: store.lastSession(),
+    chatOpen,
+    aiReady: aiCreds.hasKey(),
     update: updater ? updater.state : null,
     tabs: tabs.map((t) => ({
       id: t.id,
@@ -445,6 +474,130 @@ function sendState() {
 }
 
 // ------------------------------------------------------------------- IPC
+
+// -------------------------------------------------------------------- chat
+
+/**
+ * The AI panel lives in its own WebContentsView beside the page.
+ * It gets the trusted preload — it's our UI, not web content.
+ */
+function ensureChatView() {
+  if (chatView) return chatView;
+  chatView = new WebContentsView({
+    webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false },
+  });
+  chatView.setBackgroundColor('#0e0f10');
+  win.contentView.addChildView(chatView);
+  attachShortcuts(chatView.webContents);
+  chatView.webContents.loadFile(path.join(RENDERER, 'chat.html'));
+  return chatView;
+}
+
+function setChatOpen(open) {
+  chatOpen = !!open;
+  if (chatOpen) ensureChatView();
+  // Keep chrome and any overlay above the panel.
+  if (chromeView) win.contentView.addChildView(chromeView);
+  if (overlayView && overlayPage) win.contentView.addChildView(overlayView);
+  layout();
+  sendState();
+  if (chatOpen && chatView) chatView.webContents.focus();
+}
+
+/** Push an event to the chat panel only. */
+function sendChat(channel, payload) {
+  if (chatView && !chatView.webContents.isDestroyed()) {
+    chatView.webContents.send(channel, payload);
+  }
+}
+
+function registerAiIpc() {
+  ipcMain.handle('ai:getConfig', () => ({
+    ...aiCreds.publicConfig(),
+    skills: aiTools.listSkills(),
+    mcp: mcp.list(),
+  }));
+
+  ipcMain.handle('ai:setKey', (_e, key) => {
+    const res = aiCreds.setKey(key);
+    sendState();
+    return res;
+  });
+
+  ipcMain.handle('ai:clearKey', () => {
+    const res = aiCreds.clearKey();
+    sendState();
+    return res;
+  });
+
+  ipcMain.handle('ai:setModel', (_e, model) => {
+    aiCreds.writeMeta({ model: String(model || '') });
+    return aiCreds.publicConfig();
+  });
+
+  ipcMain.handle('ai:setBaseUrl', (_e, url) => {
+    const u = String(url || '').trim().replace(/\/+$/, '');
+    if (u && !/^https?:\/\//i.test(u)) return { ok: false, reason: 'Use a full https URL.' };
+    aiCreds.writeMeta({ baseUrl: u || 'https://roxy.gg/v1' });
+    return { ok: true, config: aiCreds.publicConfig() };
+  });
+
+  ipcMain.handle('ai:listModels', () => aiChat.listModels());
+
+  ipcMain.handle('ai:send', async (_e, { messages, model }) => {
+    await aiChat.run({
+      messages,
+      model,
+      onEvent: (ev) => sendChat('ai:event', ev),
+      // Bash calls block here until the panel answers.
+      confirm: (call) =>
+        new Promise((resolve) => {
+          pendingApprovals.set(call.id, resolve);
+          sendChat('ai:approve', call);
+        }),
+    });
+    return true;
+  });
+
+  ipcMain.handle('ai:approve', (_e, { id, approved }) => {
+    const resolve = pendingApprovals.get(id);
+    if (resolve) {
+      pendingApprovals.delete(id);
+      resolve(!!approved);
+    }
+    return true;
+  });
+
+  ipcMain.handle('ai:cancel', () => {
+    // Deny anything still waiting, or the run would hang forever.
+    for (const [id, resolve] of pendingApprovals) {
+      resolve(false);
+      pendingApprovals.delete(id);
+    }
+    aiChat.cancel();
+    return true;
+  });
+
+  ipcMain.handle('ai:toggle', (_e, open) => {
+    setChatOpen(open === undefined ? !chatOpen : !!open);
+    return chatOpen;
+  });
+
+  // --- skills ---
+  ipcMain.handle('ai:listSkills', () => aiTools.listSkills());
+  ipcMain.handle('ai:installSkillUrl', (_e, url) => aiTools.installSkillFromUrl(url));
+  ipcMain.handle('ai:installSkillText', (_e, { name, markdown }) =>
+    aiTools.installSkill(name, markdown)
+  );
+  ipcMain.handle('ai:removeSkill', (_e, id) => aiTools.removeSkill(id));
+
+  // --- mcp ---
+  ipcMain.handle('ai:listMcp', () => mcp.list());
+  ipcMain.handle('ai:addMcp', (_e, { id, command, env, cwd }) =>
+    mcp.addServer(id, { command, env, cwd })
+  );
+  ipcMain.handle('ai:removeMcp', (_e, id) => mcp.removeServer(id));
+}
 
 function registerIpc() {
   ipcMain.handle('focus:getState', () => buildState());
@@ -843,6 +996,10 @@ function handleShortcut(input) {
     }
     return true;
   }
+  if (ctrl && !input.shift && key === 'j') {
+    setChatOpen(!chatOpen);
+    return true;
+  }
   if (ctrl && !input.shift && key === 'r') {
     const t = activeTab();
     if (t) t.view.webContents.reload();
@@ -1012,8 +1169,12 @@ if (!single) {
 
     installNetworkFilter();
     registerIpc();
+    registerAiIpc();
     createWindow();
     registerShortcuts();
+
+    // MCP servers connect in the background; a failure must never block the UI.
+    mcp.connectAll().catch((err) => console.error('[focus] mcp connect:', err.message));
 
     // Auto-update from GitHub Releases. Never interrupts a running session.
     updater = initUpdater({

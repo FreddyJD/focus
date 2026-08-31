@@ -40,6 +40,11 @@ const PAGES = [
     search: '',
     mustFind: ['#heat', '#bars', '#figToday', '#figStreak', '#close'],
   },
+  {
+    file: 'chat.html',
+    search: '',
+    mustFind: ['#log', '#input', '#send', '#settingsBtn', '#modelBtn'],
+  },
 ];
 
 const STATE = {
@@ -110,6 +115,18 @@ app.whenReady().then(async () => {
       longestStreak: 5,
     };
   });
+
+  // Chat panel needs its AI config channels stubbed.
+  ipcMain.handle('ai:getConfig', () => ({
+    baseUrl: 'https://roxy.gg/v1',
+    model: 'openai/gpt-5.6-sol',
+    hasKey: true,
+    keyHint: 'rx-ab…7f9c',
+    encryptionAvailable: true,
+    skills: [{ id: 'demo', name: 'demo', description: 'A demo skill', chars: 100 }],
+    mcp: [],
+  }));
+  ipcMain.handle('ai:listModels', () => ({ ok: true, models: [] }));
 
   const win = new BrowserWindow({
     show: false,

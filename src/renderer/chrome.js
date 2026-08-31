@@ -20,6 +20,7 @@ const el = {
   statusIcon: $('statusIcon'),
   statusLabel: $('statusLabel'),
   settings: $('settings'),
+  chatBtn: $('chatBtn'),
 };
 
 const CIRC = 62.83; // 2 * pi * 10
@@ -33,6 +34,7 @@ el.forward.innerHTML = icon('forward', 'sm');
 el.reload.innerHTML = icon('reload', 'sm');
 el.finish.innerHTML = icon('check', 'xs');
 el.settings.innerHTML = icon('settings', 'sm');
+el.chatBtn.innerHTML = icon('sparkle', 'sm');
 
 // ------------------------------------------------------------------ helpers
 
@@ -196,6 +198,7 @@ function render(s) {
   renderTimer(s.session);
   renderStatus(s);
   renderNav(s);
+  el.chatBtn.classList.toggle('on', !!s.chatOpen);
 }
 
 // ------------------------------------------------------------------- events
@@ -207,6 +210,7 @@ el.reload.addEventListener('click', () => window.focusApi.reload());
 el.pause.addEventListener('click', () => window.focusApi.togglePause());
 el.finish.addEventListener('click', () => window.focusApi.complete());
 el.settings.addEventListener('click', () => window.focusApi.openSettings());
+el.chatBtn.addEventListener('click', () => window.focusApi.ai.toggle());
 
 el.address.addEventListener('input', () => {
   addressDirty = true;

@@ -39,6 +39,42 @@ const api = {
   openActivity: () => ipcRenderer.invoke('focus:openActivity'),
   closeActivity: () => ipcRenderer.invoke('focus:closeActivity'),
 
+  // --- AI chat ---
+  ai: {
+    getConfig: () => ipcRenderer.invoke('ai:getConfig'),
+    setKey: (key) => ipcRenderer.invoke('ai:setKey', key),
+    clearKey: () => ipcRenderer.invoke('ai:clearKey'),
+    setModel: (m) => ipcRenderer.invoke('ai:setModel', m),
+    setBaseUrl: (u) => ipcRenderer.invoke('ai:setBaseUrl', u),
+    listModels: () => ipcRenderer.invoke('ai:listModels'),
+
+    send: (payload) => ipcRenderer.invoke('ai:send', payload),
+    cancel: () => ipcRenderer.invoke('ai:cancel'),
+    approve: (id, approved) => ipcRenderer.invoke('ai:approve', { id, approved }),
+    toggle: (open) => ipcRenderer.invoke('ai:toggle', open),
+
+    onEvent: (cb) => {
+      const h = (_e, ev) => cb(ev);
+      ipcRenderer.on('ai:event', h);
+      return () => ipcRenderer.removeListener('ai:event', h);
+    },
+    onApprove: (cb) => {
+      const h = (_e, call) => cb(call);
+      ipcRenderer.on('ai:approve', h);
+      return () => ipcRenderer.removeListener('ai:approve', h);
+    },
+
+    listSkills: () => ipcRenderer.invoke('ai:listSkills'),
+    installSkillUrl: (url) => ipcRenderer.invoke('ai:installSkillUrl', url),
+    installSkillText: (name, markdown) =>
+      ipcRenderer.invoke('ai:installSkillText', { name, markdown }),
+    removeSkill: (id) => ipcRenderer.invoke('ai:removeSkill', id),
+
+    listMcp: () => ipcRenderer.invoke('ai:listMcp'),
+    addMcp: (spec) => ipcRenderer.invoke('ai:addMcp', spec),
+    removeMcp: (id) => ipcRenderer.invoke('ai:removeMcp', id),
+  },
+
   // --- config ---
   setConfig: (patch) => ipcRenderer.invoke('focus:setConfig', patch),  addSite: (value) => ipcRenderer.invoke('focus:addSite', value),
   removeSite: (value) => ipcRenderer.invoke('focus:removeSite', value),

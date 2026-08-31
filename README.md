@@ -273,6 +273,39 @@ Old inflated records are repaired on load, capped at the wall-clock time
 between a session's start and finish, which is the hard ceiling on how long
 anyone could have focused.
 
+## Assistant
+
+The sparkle icon in the toolbar (or `Ctrl+J`) opens an AI panel beside the
+page — it shares the window rather than covering it, so you can read and chat
+at once.
+
+It speaks the OpenAI Chat Completions protocol, so it works with
+[Roxy](https://roxy.gg/v1) or any compatible endpoint. Add a key under the
+panel's Settings, pick a model from the live catalog, and go.
+
+**Your key never touches a renderer.** It's encrypted with Electron's
+`safeStorage` (DPAPI on Windows), so the bytes on disk are useless to another
+user or another machine. All HTTP calls happen in the main process; renderers
+only ever receive text. Deliberately not localStorage — anything that can
+inject into a page can read that.
+
+### Tools
+
+- **bash** — runs real shell commands (PowerShell on Windows). **Every call
+  waits for you to approve it**, shown with the exact command before it runs.
+- **skill** — loads an installed SKILL.md on demand.
+- **MCP** — add local stdio servers under Settings; their tools appear
+  automatically, namespaced `mcp__<server>__<tool>`.
+
+Install a skill by pasting a link to a `SKILL.md` (GitHub blob URLs are
+rewritten to raw automatically).
+
+A short deny-list refuses catastrophic one-liners (`rm -rf /`, `mkfs`,
+`diskpart`, fork bombs) outright. That's a seatbelt for accidents, not a
+sandbox — **the approval gate is the real protection.** Ordinary work like
+`rm -rf node_modules` is deliberately still allowed, because a filter that
+blocks real work just gets ignored.
+
 ## Layout
 
 ```
